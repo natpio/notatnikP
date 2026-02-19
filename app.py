@@ -3,40 +3,40 @@ from streamlit_gsheets import GSheetsConnection
 from streamlit_calendar import calendar
 import pandas as pd
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # --- KONFIGURACJA ---
-st.set_page_config(page_title="SQM LOGISTICS", page_icon="🚛", layout="wide")
+st.set_page_config(page_title="SQM Notatnik", page_icon="📝", layout="wide")
 
-# --- MINIMALISTYCZNY DESIGN OPERACYJNY ---
+# --- DESIGN: CLEAN & FAST ---
 st.markdown("""
 <style>
-    .stApp { background-color: #f8f9fa; color: #1a1a1a; }
+    .stApp { background-color: #ffffff; }
     
-    /* Panele boczne i karty */
-    [data-testid="stVerticalBlock"] > div.stVerticalBlock {
-        background-color: #ffffff;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border: 1px solid #dee2e6;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    /* Stylizacja wejścia tekstowego a la komunikator */
+    .stTextArea textarea {
+        background-color: #f0f2f5 !important;
+        border-radius: 15px !important;
+        border: 1px solid #d1d7db !important;
     }
 
-    /* Przyciski */
+    /* Karty ostatnich notatek */
+    .note-card {
+        background-color: #fff9c4;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 5px solid #fbc02d;
+        margin-bottom: 10px;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
     .stButton>button {
-        width: 100%;
-        background-color: #212529 !important;
+        border-radius: 20px !important;
+        background-color: #25d366 !important; /* WhatsApp Green */
         color: white !important;
         font-weight: bold;
-        border-radius: 5px !important;
-        height: 45px;
+        border: none !important;
     }
-
-    /* Nagłówki */
-    h1, h2, h3 { color: #212529 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-
-    /* Kalendarz */
-    .fc { background: white !important; padding: 10px; border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -44,9 +44,11 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
-    df = conn.read(ttl="0s")
-    if "LDM" not in df.columns: df["LDM"] = 0.0
-    return df
+    try:
+        df = conn.read(ttl="0s")
+        return df
+    except:
+        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID"])
 
 def save_data(df):
     conn.update(data=df)
@@ -54,78 +56,71 @@ def save_data(df):
 
 df = load_data()
 
-# --- INTERFEJS ---
-st.title("🚛 SQM: Zarządzanie Transportem i Przestrzenią")
+# --- UKŁAD STRONY ---
+col_main, col_cal = st.columns([1, 1], gap="large")
 
-col_left, col_right = st.columns([1, 2], gap="large")
-
-# LEWA KOLUMNA: OPERACJE
-with col_left:
-    st.subheader("🛠️ Dodaj Zdarzenie")
-    with st.form("main_form", clear_on_submit=True):
-        d = st.date_input("Data", value=datetime.now())
-        t = st.selectbox("Typ", ["🚛 Pełny Transport", "📦 Doładunek", "⏱️ Slot Rozładunkowy", "🛠️ Serwis/Inne"])
-        l = st.number_input("Zajęte metry ładowne (LDM)", min_value=0.0, max_value=13.6, step=0.1, help="Standardowa naczepa to 13.6 LDM")
-        n = st.text_area("Szczegóły (Nr naczepy, kierowca, miejsce)")
-        
-        if st.form_submit_button("ZAPISZ"):
-            new_row = pd.DataFrame([{"Date": str(d), "Note": n, "Type": t, "LDM": l, "ID": str(uuid.uuid4())}])
-            df = pd.concat([df, new_row], ignore_index=True)
-            save_data(df)
-            st.success("Wpis dodany pomyślnie.")
-            st.rerun()
+with col_main:
+    st.title("📝 SQM: Szybka Notatka")
+    
+    # SEKCOJA: DODAJ TERAZ
+    with st.container():
+        note_text = st.text_area("", placeholder="Wpisz treść (np. dzwonił kierowca z naczepą SQM 123...)", height=100)
+        c1, c2 = st.columns([3, 1])
+        with c2:
+            if st.button("ZAPISZ ✍️"):
+                if note_text:
+                    new_note = pd.DataFrame([{
+                        "Timestamp": datetime.now().strftime("%H:%M:%S"),
+                        "Date": datetime.now().strftime("%Y-%m-%d"),
+                        "Note": note_text,
+                        "ID": str(uuid.uuid4())
+                    }])
+                    df = pd.concat([df, new_note], ignore_index=True)
+                    save_data(df)
+                    st.rerun()
 
     st.markdown("---")
-    st.subheader("📋 Plan na najbliższe 2 dni")
-    today = datetime.now().strftime("%Y-%m-%d")
-    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    st.subheader("🕒 Ostatnie wpisy")
     
-    plan_df = df[df['Date'].isin([today, tomorrow])].sort_values('Date')
-    if not plan_df.empty:
-        for _, row in plan_df.iterrows():
-            with st.container():
-                st.markdown(f"**{row['Date']}** | {row['Type']}")
-                st.caption(f"{row['Note']} (Zajęte: {row['LDM']} LDM)")
+    # Wyświetlamy 5 ostatnich notatek w formie kart
+    if not df.empty:
+        recent_notes = df.tail(5).iloc[::-1] # Ostatnie 5 od najnowszych
+        for _, row in recent_notes.iterrows():
+            st.markdown(f"""
+            <div class="note-card">
+                <small>{row['Date']} o {row['Timestamp']}</small><br>
+                {row['Note']}
+            </div>
+            """, unsafe_allow_html=True)
     else:
-        st.info("Brak zaplanowanych zadań na dziś i jutro.")
+        st.info("Brak notatek. Wpisz coś powyżej.")
 
-# PRAWA KOLUMNA: HARMONOGRAM I KONTROLA
-with col_right:
-    st.subheader("📅 Harmonogram Miesięczny")
+with col_cal:
+    st.subheader("📅 Archiwum w kalendarzu")
     
     events = []
-    for _, row in df.iterrows():
-        if len(str(row['Date'])) >= 10:
+    if not df.empty:
+        for _, row in df.iterrows():
             events.append({
-                "title": f"[{row['LDM']} LDM] {row['Note'][:20]}...",
+                "title": f"{row['Timestamp']} - {row['Note'][:30]}...",
                 "start": str(row['Date']),
-                "backgroundColor": "#343a40" if row['Type'] == "🚛 Pełny Transport" else "#adb5bd",
-                "borderColor": "#212529"
+                "allDay": True,
+                "color": "#fbc02d"
             })
 
     calendar(events=events, options={
-        "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,listWeek"},
         "initialView": "dayGridMonth",
         "firstDay": 1,
         "locale": "pl",
-        "height": "650px"
-    }, key="sqm_calendar")
+        "height": "600px"
+    }, key="simple_cal")
 
-    with st.expander("🗑️ Usuwanie wpisów"):
-        if not df.empty:
-            to_del = st.selectbox("Wybierz wpis do usunięcia", df.index, 
-                                 format_func=lambda x: f"{df.at[x,'Date']} - {df.at[x,'Note'][:30]}")
-            if st.button("POTWIERDŹ USUNIĘCIE"):
-                df = df.drop(to_del)
-                save_data(df)
-                st.rerun()
-
-# --- DOLNY PANEL: PODGLĄD DANYCH ---
-st.markdown("---")
-with st.expander("🔍 Pełny podgląd bazy danych (Google Sheets)"):
-    # Obliczamy sumę LDM na dzień dla podglądu
-    daily_sum = df.groupby('Date')['LDM'].sum().reset_index()
-    st.write("**Podsumowanie zajętości LDM wg dni:**")
-    st.dataframe(daily_sum, hide_index=True)
-    st.write("**Wszystkie wpisy:**")
-    st.dataframe(df.sort_values('Date', ascending=False), use_container_width=True)
+# --- ZARZĄDZANIE ---
+with st.expander("🛠️ Pełna lista / Usuwanie"):
+    if not df.empty:
+        st.dataframe(df.sort_values(by=['Date', 'Timestamp'], ascending=False), use_container_width=True)
+        to_del = st.selectbox("Wybierz do usunięcia", df.index)
+        if st.button("USUŃ WPIS"):
+            df = df.drop(to_del)
+            save_data(df)
+            st.rerun()

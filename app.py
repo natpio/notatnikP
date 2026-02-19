@@ -6,12 +6,12 @@ import uuid
 from datetime import datetime
 
 # --- KONFIGURACJA ---
-st.set_page_config(page_title="SQM Country Log", page_icon="🤠", layout="wide")
+st.set_page_config(page_title="SQM Sheriff Office", page_icon="🤠", layout="wide")
 
-# --- DESIGN: EXTREME COUNTRY (WOOD & PAPER) ---
+# --- DESIGN: FRONTIER TERMINAL ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Rye&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Rye&family=Courier+Prime&display=swap');
 
     .stApp {
         background-color: #2b1d12;
@@ -25,22 +25,29 @@ st.markdown("""
         color: #d4af37;
         text-align: center;
         text-shadow: 3px 3px 0px #000;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         border: 4px double #d4af37;
         padding: 20px;
     }
 
+    /* Kartki zwykłe i PILNE (WANTED) */
     .note-paper {
         background-color: #e2cfb6;
         background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
         color: #2b1d12;
         padding: 25px;
-        margin: 20px 0px;
+        margin: 15px 0px;
         border-radius: 2px;
-        box-shadow: 10px 10px 20px rgba(0,0,0,0.6);
+        box-shadow: 8px 8px 15px rgba(0,0,0,0.6);
         font-family: 'Special Elite', cursive;
         position: relative;
         border: 1px solid #c0a080;
+    }
+
+    .note-urgent {
+        background-color: #b71c1c !important;
+        color: #ffffff !important;
+        border: 3px solid #d4af37 !important;
     }
 
     .note-paper::before {
@@ -48,146 +55,130 @@ st.markdown("""
         position: absolute;
         top: 10px;
         left: 50%;
-        width: 15px;
-        height: 15px;
-        background: #444;
+        width: 14px;
+        height: 14px;
+        background: #333;
         border-radius: 50%;
-        box-shadow: inset 2px 2px 5px #000;
         transform: translateX(-50%);
+        box-shadow: 1px 1px 3px #000;
     }
 
+    /* Stylizacja wejścia */
     .stTextArea textarea {
-        background-color: #f5f5f5 !important;
+        background-color: #fdf5e6 !important;
         font-family: 'Special Elite', cursive !important;
-        font-size: 1.1rem !important;
         color: #1a1a1a !important;
     }
 
-    .stButton>button {
-        background-color: #4e342e !important;
+    /* Przyciski telegrafu */
+    .telegraph-btn {
+        background-color: #5d4037 !important;
+        border: 1px solid #d4af37 !important;
         color: #d4af37 !important;
         font-family: 'Rye', cursive !important;
-        border: 2px solid #d4af37 !important;
-        width: 100%;
-        height: 50px;
-        font-size: 1.2rem !important;
-    }
-
-    .stButton>button:hover {
-        background-color: #d4af37 !important;
-        color: #2b1d12 !important;
+        margin-bottom: 5px;
     }
 
     .fc { background: #fdf5e6 !important; color: #2b1d12 !important; border: 5px solid #5d4037; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- INICJALIZACJA STANU EDYCJI ---
-if 'edit_content' not in st.session_state:
-    st.session_state['edit_content'] = ""
+# --- INICJALIZACJA STANU ---
+if 'edit_content' not in st.session_state: st.session_state['edit_content'] = ""
 
-# --- POŁĄCZENIE Z DANYMI ---
+# --- POŁĄCZENIE ---
 conn = st.connection("gsheets", type=GSheetsConnection)
-
 def load_data():
     try:
-        return conn.read(ttl="1s")
-    except Exception:
-        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID"])
+        df = conn.read(ttl="1s")
+        if "Priority" not in df.columns: df["Priority"] = "Normal"
+        return df
+    except:
+        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "Priority", "ID"])
 
 df = load_data()
 
 # --- NAGŁÓWEK ---
-st.markdown('<div class="wanted-header">SQM LOGISTICS TERMINAL</div>', unsafe_allow_html=True)
+st.markdown('<div class="wanted-header">SQM LOGISTICS: SHERIFF OFFICE</div>', unsafe_allow_html=True)
 
 col_input, col_display = st.columns([1, 1.2], gap="large")
 
 with col_input:
-    st.subheader("🤠 Przybij nową notatkę")
-    
-    # Formularz wprowadzania
-    with st.form("main_form", clear_on_submit=True):
-        # Pole tekstowe bierze wartość ze stanu edycji, jeśli kliknięto 'Popraw'
-        note_txt = st.text_area("", value=st.session_state['edit_content'], height=200, placeholder="Wpisz treść...")
-        submit_btn = st.form_submit_button("PRZYBIJ DO TABLICY")
-        
-        if submit_btn and note_txt:
-            now = datetime.now()
-            new_entry = pd.DataFrame([{
-                "Timestamp": now.strftime("%H:%M:%S"),
-                "Date": now.strftime("%Y-%m-%d"),
-                "Note": note_txt,
-                "ID": str(uuid.uuid4())
-            }])
-            
-            # Aktualizacja danych
-            df = pd.concat([df, new_entry], ignore_index=True)
-            conn.update(data=df)
-            st.cache_data.clear()
-            
-            # Czyszczenie stanu edycji po zapisie
-            st.session_state['edit_content'] = ""
-            st.rerun()
+    # 1. TELEGRAF (Szybkie szablony)
+    st.markdown("### 📟 Telegraf (Szybkie akcje)")
+    t1, t2, t3 = st.columns(3)
+    with t1:
+        if st.button("🚛 Transport OK"): st.session_state['edit_content'] = "TRANSPORT W DRODZE: "
+    with t2:
+        if st.button("⏱️ Slot Potwierdzony"): st.session_state['edit_content'] = "SLOT POTWIERDZONY: "
+    with t3:
+        if st.button("⚠️ Opóźnienie"): st.session_state['edit_content'] = "⚠️ OPÓŹNIENIE: "
 
+    # 2. FORMULARZ ZAPISU
+    with st.form("sheriff_form", clear_on_submit=True):
+        note_txt = st.text_area("Meldunek:", value=st.session_state['edit_content'], height=150)
+        prio = st.checkbox("🔥 PILNE (WANTED)")
+        if st.form_submit_button("PRZYBIJ DO ŚCIANY"):
+            if note_txt:
+                new_row = pd.DataFrame([{
+                    "Timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "Date": datetime.now().strftime("%Y-%m-%d"),
+                    "Note": note_txt,
+                    "Priority": "High" if prio else "Normal",
+                    "ID": str(uuid.uuid4())
+                }])
+                df = pd.concat([df, new_row], ignore_index=True)
+                conn.update(data=df)
+                st.cache_data.clear()
+                st.session_state['edit_content'] = ""
+                st.rerun()
+
+    # 3. SZUKAJ W AKTACH
     st.markdown("---")
-    st.subheader("📜 Wszystkie kartki na ścianie")
-    
+    search_query = st.text_input("🔍 Przeszukaj akta szeryfa:", placeholder="Wpisz np. Berlin, Nazwisko, Nr...")
+
+    # 4. TABLICA OGŁOSZEŃ
+    st.subheader("📜 Tablica Ogłoszeń")
     if not df.empty:
-        # Sortowanie: najnowsze na górze
-        sorted_df = df.sort_values(by=['Date', 'Timestamp'], ascending=False)
+        display_df = df.copy()
+        if search_query:
+            display_df = display_df[display_df['Note'].str.contains(search_query, case=False, na=False)]
         
-        for i, row in sorted_df.iterrows():
-            # KARTKA
+        for i, row in display_df.sort_values(by=['Date', 'Timestamp'], ascending=False).iterrows():
+            prio_class = "note-urgent" if row.get('Priority') == "High" else ""
             st.markdown(f"""
-            <div class="note-paper">
-                <div style="font-size: 0.8rem; border-bottom: 1px solid #999; margin-bottom: 8px; color: #555;">
-                    📅 {row['Date']} | ⏰ {row['Timestamp']}
+            <div class="note-paper {prio_class}">
+                <div style="font-size: 0.8rem; border-bottom: 1px solid rgba(0,0,0,0.2); margin-bottom: 8px;">
+                    📅 {row['Date']} | ⏰ {row['Timestamp']} { ' | 🚨 WANTED' if row.get('Priority') == 'High' else ''}
                 </div>
                 <div style="font-size: 1.1rem; line-height: 1.3;">{row['Note']}</div>
             </div>
             """, unsafe_allow_html=True)
             
-            # PRZYCISKI AKCJI
             b1, b2 = st.columns(2)
             with b1:
-                if st.button(f"✏️ Popraw", key=f"edit_{row['ID']}"):
+                if st.button(f"✏️ Edytuj", key=f"ed_{row['ID']}"):
                     st.session_state['edit_content'] = row['Note']
-                    st.rerun() # Przeładowuje, by tekst wskoczył do formularza na górze
-            
+                    st.rerun()
             with b2:
-                if st.button(f"🔥 Spal", key=f"del_{row['ID']}"):
+                if st.button(f"🔥 Spal", key=f"sp_{row['ID']}"):
                     df = df[df['ID'] != row['ID']]
                     conn.update(data=df)
                     st.cache_data.clear()
                     st.rerun()
-    else:
-        st.info("Tablica jest pusta.")
 
 with col_display:
-    st.subheader("📅 Rejestr Dni")
-    
-    calendar_events = []
+    st.subheader("📅 Mapa Czasu")
+    events = []
     if not df.empty:
         for _, row in df.iterrows():
-            if pd.notna(row['Date']):
-                calendar_events.append({
-                    "title": f"🕒 {row['Timestamp']} - {row['Note'][:20]}...",
-                    "start": str(row['Date']),
-                    "color": "#4e342e"
-                })
-
-    calendar(
-        events=calendar_events,
-        options={
-            "initialView": "dayGridMonth",
-            "firstDay": 1,
-            "locale": "pl",
-            "height": 650,
-            "selectable": False
-        },
-        key="country_calendar_v5"
-    )
-
+            events.append({
+                "title": f"{row['Timestamp']} - {row['Note'][:20]}",
+                "start": str(row['Date']),
+                "color": "#b71c1c" if row.get('Priority') == "High" else "#5d4037"
+            })
+    calendar(events=events, options={"initialView": "dayGridMonth", "locale": "pl", "height": 600}, key="sheriff_cal")
+    
     st.markdown("---")
-    with st.expander("🛠️ Podgląd techniczny (Arkusz)"):
-        st.dataframe(df, use_container_width=True)
+    st.markdown("### 🏜️ SQM Logistics Status")
+    st.write("Wszystkich notatek w archiwum:", len(df))

@@ -6,129 +6,157 @@ import uuid
 from datetime import datetime
 
 # --- KONFIGURACJA ---
-st.set_page_config(page_title="SQM Terminal", page_icon="📝", layout="wide")
+st.set_page_config(page_title="SQM Country Terminal", page_icon="🤠", layout="wide")
 
-# --- DESIGN: WHATSAPP STYLE & NO BLINK ---
+# --- DESIGN: DEEP COUNTRY (WOOD & PAPER) ---
 st.markdown("""
 <style>
-    .stApp { background-color: #f0f2f5; }
-    
-    /* Ukrycie menu Streamlit dla większego skupienia */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap');
 
-    /* Karty notatek */
-    .note-card {
-        background-color: #ffffff;
-        padding: 12px;
-        border-radius: 10px;
-        border-left: 5px solid #25d366;
-        margin-bottom: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        font-family: 'Segoe UI', sans-serif;
+    /* Tło - efekt drewnianego blatu */
+    .stApp {
+        background-color: #3e2723;
+        background-image: url("https://www.transparenttextures.com/patterns/wood-pattern.png");
+        color: #efebe9;
+    }
+
+    /* Kartki z notatkami (Stary papier) */
+    .note-paper {
+        background-color: #fff9c4;
+        background-image: url("https://www.transparenttextures.com/patterns/beige-paper.png");
+        color: #3e2723;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-radius: 2px;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+        font-family: 'Special Elite', cursive;
+        border-left: 10px solid #8d6e63;
+        transform: rotate(-1deg);
+    }
+
+    /* Stylizacja pól tekstowych */
+    .stTextArea textarea {
+        background-color: #efebe9 !important;
+        font-family: 'Courier Prime', monospace !important;
+        border: 3px solid #5d4037 !important;
+        color: #3e2723 !important;
+    }
+
+    /* Nagłówki */
+    h1, h2, h3 {
+        font-family: 'Special Elite', cursive !important;
+        color: #d7ccc8 !important;
+        text-shadow: 2px 2px #1a1a1a;
+    }
+
+    /* Przycisk - wypalane drewno */
+    .stButton>button {
+        background-color: #5d4037 !important;
+        color: #d7ccc8 !important;
+        border: 2px solid #8d6e63 !important;
+        font-family: 'Special Elite', cursive !important;
+        padding: 10px 20px !important;
+        transition: 0.3s;
     }
     
-    .timestamp { color: #888; font-size: 0.8rem; }
+    .stButton>button:hover {
+        background-color: #8d6e63 !important;
+        color: #ffffff !important;
+        transform: scale(1.02);
+    }
 
-    /* Duże pole tekstowe */
-    .stTextArea textarea {
-        border-radius: 10px !important;
+    /* Kalendarz */
+    .fc { 
+        background: #efebe9 !important; 
+        color: #3e2723 !important; 
+        padding: 15px; 
+        border-radius: 5px;
+        font-family: 'Courier Prime', monospace;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- POŁĄCZENIE I DANE ---
+# --- SILNIK DANYCH ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
-    try:
-        # ttl="0s" wymusza pobranie świeżych danych bez mrugania przy każdym ruchu myszką
-        df = conn.read(ttl="0s")
-        return df
-    except:
-        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID"])
+    return conn.read(ttl="0s")
 
 def save_data(df):
     conn.update(data=df)
     st.cache_data.clear()
 
-# Załaduj dane raz na cykl
 df = load_data()
 
 # --- UKŁAD ---
+st.markdown("# 🤠 SQM LOGISTICS: COUNTRY NOTES")
+
 col_left, col_right = st.columns([1, 1.2], gap="large")
 
 with col_left:
-    st.markdown("### ⚡ Szybki Zapis")
+    st.subheader("📝 Szybka Notatka (Dzwonią / Piszą)")
     
-    # Używamy formularza, aby uniknąć mrugania przy każdym wpisanym znaku
-    with st.form("quick_note_form", clear_on_submit=True):
-        note_content = st.text_area("Treść notatki z rozmowy/maila:", height=150, placeholder="Np. Kierowca dzwonił, będzie za 20 min pod slotem 4...")
-        submit = st.form_submit_button("ZAPISZ (ENTER)")
+    # Formularz - zapobiega mruganiu podczas pisania
+    with st.form("country_form", clear_on_submit=True):
+        txt = st.text_area("", height=150, placeholder="Pisz tutaj... (np. WhatsApp od kierowcy)")
+        submitted = st.form_submit_button("PRZYBIJ DO TABLICY (ENTER)")
         
-        if submit and note_content:
+        if submitted and txt:
             now = datetime.now()
             new_note = pd.DataFrame([{
                 "Timestamp": now.strftime("%H:%M:%S"),
                 "Date": now.strftime("%Y-%m-%d"),
-                "Note": note_content,
+                "Note": txt,
                 "ID": str(uuid.uuid4())
             }])
             df = pd.concat([df, new_note], ignore_index=True)
             save_data(df)
-            st.success("Zapisano!")
             st.rerun()
 
     st.markdown("---")
-    st.markdown("### 🕒 Ostatnie 5 minut")
+    st.subheader("📌 Ostatnie na blacie")
     
     if not df.empty:
-        # Wyświetlamy ostatnie wpisy
-        recent = df.tail(5).iloc[::-1]
-        for idx, row in recent.iterrows():
-            with st.container():
-                st.markdown(f"""
-                <div class="note-card">
-                    <div class="timestamp">{row['Date']} | {row['Timestamp']}</div>
-                    {row['Note']}
-                </div>
-                """, unsafe_allow_html=True)
-                # Przycisk do szybkiego kopiowania do schowka (pomocne przy Outlooku)
-                st.button(f"Kopiuj treść", key=f"copy_{row['ID']}", on_click=lambda t=row['Note']: st.write(f"Skopiowano: {t}") if False else None)
+        # Pokazujemy 3 ostatnie notatki w stylu "kartek"
+        recent = df.tail(3).iloc[::-1]
+        for _, row in recent.iterrows():
+            st.markdown(f"""
+            <div class="note-paper">
+                <small>GODZ: {row['Timestamp']} | DATA: {row['Date']}</small><br>
+                <div style="font-size: 1.2rem; margin-top: 10px;">{row['Note']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 with col_right:
-    st.markdown("### 📅 Widok Dni")
+    st.subheader("📅 Rejestr")
     
     events = []
     if not df.empty:
         for _, row in df.iterrows():
             if pd.notna(row['Date']):
                 events.append({
-                    "title": f"{row['Timestamp']} - {row['Note'][:40]}...",
+                    "title": f"{row['Timestamp']} - {row['Note'][:30]}",
                     "start": str(row['Date']),
-                    "color": "#25d366"
+                    "color": "#5d4037"
                 })
 
-    # Kluczowa zmiana: kalendarz jest teraz statyczny, nie reaguje na kliknięcia, co eliminuje mruganie
     calendar(
         events=events,
         options={
             "initialView": "dayGridMonth",
             "firstDay": 1,
             "locale": "pl",
-            "selectable": False, # Wyłączone dla stabilności
-            "height": 550
+            "height": 550,
+            "selectable": False
         },
-        key="static_calendar"
+        key="country_calendar"
     )
 
-    with st.expander("🗑️ Edytuj / Usuń wpisy"):
+    with st.expander("📂 Archiwum i Usuwanie"):
         if not df.empty:
-            edit_df = df.sort_values(by=['Date', 'Timestamp'], ascending=False)
-            st.dataframe(edit_df[['Date', 'Timestamp', 'Note']], use_container_width=True)
-            
-            to_del_id = st.selectbox("Wybierz wpis do usunięcia", options=df.index, format_func=lambda x: f"{df.at[x,'Date']} - {df.at[x,'Note'][:20]}")
-            if st.button("USUŃ DEFINITYWNIE"):
-                df = df.drop(to_del_id)
+            st.dataframe(df.sort_values(by=['Date', 'Timestamp'], ascending=False), use_container_width=True)
+            to_del = st.selectbox("Wybierz wpis do spalenia", options=df.index, format_func=lambda x: f"{df.at[x,'Date']} - {df.at[x,'Note'][:20]}")
+            if st.button("USUŃ WPIS"):
+                df = df.drop(to_del)
                 save_data(df)
                 st.rerun()

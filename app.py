@@ -6,16 +6,77 @@ import uuid
 from datetime import datetime
 
 # Konfiguracja SQM
-st.set_page_config(page_title="SQM Notatnik", page_icon="🚛", layout="wide")
+st.set_page_config(page_title="SQM Notatnik Logistyka", page_icon="🤠", layout="wide")
 
-# Styl Country
+# ZAAWANSOWANY STYL COUNTRY
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Lora:wght@400;700&display=swap');
-    .stApp { background-color: #fdf5e6; color: #3e2723; }
-    h1, h2, h3 { font-family: 'Special+Elite', serif; color: #5d4037 !important; }
-    .stButton>button { background-color: #8d6e63 !important; color: #ffffff !important; border: 2px solid #5d4037 !important; font-family: 'Lora', serif; border-radius: 0px !important; }
-    .fc { background-color: #ffffff; padding: 15px; border-radius: 5px; border: 2px solid #d7ccc8; }
+    
+    /* Główne tło */
+    .stApp { 
+        background-color: #f4ece2; 
+        color: #3e2723; 
+    }
+    
+    /* Nagłówki */
+    h1, h2, h3 { 
+        font-family: 'Special+Elite', serif; 
+        color: #5d4037 !important; 
+        text-align: center;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* Stylizacja kart */
+    div[data-testid="stVerticalBlock"] > div.stVerticalBlock {
+        background-color: #ffffff77;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #d7ccc8;
+    }
+
+    /* Przyciski */
+    .stButton>button { 
+        width: 100%;
+        background-color: #8d6e63 !important; 
+        color: #ffffff !important; 
+        border: none !important;
+        font-family: 'Lora', serif; 
+        padding: 10px;
+        font-weight: bold;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .stButton>button:hover {
+        background-color: #5d4037 !important;
+        transform: translateY(-2px);
+    }
+
+    /* Kalendarz */
+    .fc { 
+        background-color: #ffffff; 
+        padding: 20px; 
+        border-radius: 15px; 
+        border: 2px solid #8d6e63;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    }
+
+    /* Wygląd zakładek */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #d7ccc8;
+        border-radius: 5px 5px 0 0;
+        padding: 10px 20px;
+        color: #5d4037;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #8d6e63 !important;
+        color: white !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -23,78 +84,110 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
-    # Pobiera dane z pierwszej karty arkusza
     return conn.read(ttl="0s")
 
 def save_data(dataframe):
-    # Zapisuje dane z powrotem do arkusza
     conn.update(data=dataframe)
     st.cache_data.clear()
 
-# Załaduj dane lub stwórz puste, jeśli arkusz nie ma nagłówków
+# Ładowanie danych
 try:
     df = load_data()
-    # Upewnij się, że kolumna ID istnieje
     if "ID" not in df.columns:
         df["ID"] = [str(uuid.uuid4()) for _ in range(len(df))]
 except:
-    df = pd.DataFrame(columns=["Date", "Note", "ID"])
+    df = pd.DataFrame(columns=["Date", "Note", "Type", "ID"])
 
-st.title("🤠 SQM: Logistyczny Notatnik")
+# --- INTERFEJS ---
 
+st.title("🤠 SQM: Logistyka i Plany")
+st.markdown("<p style='text-align: center; font-style: italic;'>Zarządzanie transportem w starym dobrym stylu</p>", unsafe_allow_html=True)
+
+# Przygotowanie zdarzeń
 calendar_events = []
 if not df.empty:
     for _, row in df.iterrows():
         if pd.notna(row['Date']) and str(row['Date']).strip() != "":
+            # Różne kolory dla typów (opcjonalnie)
+            event_color = "#8d6e63"
+            if "Type" in df.columns:
+                if row['Type'] == "Załadunek": event_color = "#455a64"
+                if row['Type'] == "Slot": event_color = "#6d4c41"
+
             calendar_events.append({
-                "title": str(row['Note']),
+                "title": f"[{row.get('Type', 'Notatka')}] {row['Note']}",
                 "start": str(row['Date']),
                 "id": str(row['ID']),
-                "color": "#8d6e63"
+                "color": event_color
             })
 
-col_left, col_right = st.columns([2, 1])
+# Układ główny
+col_cal, col_side = st.columns([2.5, 1], gap="large")
 
-with col_left:
-    st.subheader("Kalendarz miesięczny")
+with col_cal:
+    st.markdown("### 📅 Harmonogram")
     state = calendar(
         events=calendar_events,
-        options={"headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth"}, "firstDay": 1, "locale": "pl"},
-        key="sqm_cal"
+        options={
+            "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth"},
+            "firstDay": 1,
+            "locale": "pl",
+            "height": 650
+        },
+        key="sqm_calendar_pro"
     )
+    
     if state.get("dateClick"):
         st.session_state["clicked_date"] = state["dateClick"]["date"].split("T")[0]
 
-with col_right:
-    st.subheader("Opcje")
-    t1, t2 = st.tabs(["Dodaj", "Edytuj/Usuń"])
+with col_side:
+    st.markdown("### 🛠️ Panel Akcji")
     
-    with t1:
-        with st.form("add_form", clear_on_submit=True):
+    tab_add, tab_edit = st.tabs(["🆕 Dodaj", "✏️ Edycja"])
+    
+    with tab_add:
+        with st.container():
             def_date = st.session_state.get("clicked_date", datetime.now().strftime("%Y-%m-%d"))
-            d_val = st.date_input("Data", value=datetime.strptime(def_date, "%Y-%m-%d"))
-            n_val = st.text_area("Treść notatki")
-            if st.form_submit_button("ZAPISZ"):
-                new_entry = pd.DataFrame([{"Date": d_val.strftime("%Y-%m-%d"), "Note": n_val, "ID": str(uuid.uuid4())}])
+            d_val = st.date_input("Data zdarzenia", value=datetime.strptime(def_date, "%Y-%m-%d"))
+            t_val = st.selectbox("Typ", ["Notatka", "Załadunek", "Rozładunek", "Slot", "Serwis"])
+            n_val = st.text_area("Szczegóły (np. nr naczepy, kierowca)", placeholder="Wpisz tutaj...")
+            
+            if st.button("➕ ZAPISZ W SYSTEMIE"):
+                new_entry = pd.DataFrame([{
+                    "Date": d_val.strftime("%Y-%m-%d"), 
+                    "Note": n_val, 
+                    "Type": t_val,
+                    "ID": str(uuid.uuid4())
+                }])
                 df = pd.concat([df, new_entry], ignore_index=True)
                 save_data(df)
-                st.success("Dodano!")
+                st.success("Zapisano pomyślnie!")
                 st.rerun()
 
-    with t2:
+    with tab_edit:
         if not df.empty:
-            idx = st.selectbox("Wybierz wpis", options=df.index, format_func=lambda x: f"{df.at[x, 'Date']} - {str(df.at[x, 'Note'])[:20]}")
-            edit_txt = st.text_area("Zmień treść", value=df.at[idx, 'Note'])
-            if st.button("AKTUALIZUJ"):
-                df.at[idx, 'Note'] = edit_txt
-                save_data(df)
-                st.success("Zmieniono!")
-                st.rerun()
-            if st.button("USUŃ"):
-                df = df.drop(idx)
-                save_data(df)
-                st.warning("Usunięto!")
-                st.rerun()
+            idx = st.selectbox("Wybierz wpis do zmiany", options=df.index, 
+                               format_func=lambda x: f"{df.at[x, 'Date']} - {str(df.at[x, 'Note'])[:15]}...")
+            
+            e_type = st.selectbox("Zmień Typ", ["Notatka", "Załadunek", "Rozładunek", "Slot", "Serwis"], 
+                                  index=["Notatka", "Załadunek", "Rozładunek", "Slot", "Serwis"].index(df.at[idx, 'Type']) if "Type" in df.columns else 0)
+            e_note = st.text_area("Popraw szczegóły", value=df.at[idx, 'Note'])
+            
+            col_u, col_d = st.columns(2)
+            with col_u:
+                if st.button("💾 ZMIEŃ"):
+                    df.at[idx, 'Note'] = e_note
+                    df.at[idx, 'Type'] = e_type
+                    save_data(df)
+                    st.rerun()
+            with col_d:
+                if st.button("🗑️ USUŃ"):
+                    df = df.drop(idx)
+                    save_data(df)
+                    st.rerun()
+        else:
+            st.info("Brak wpisów.")
 
-with st.expander("Podgląd bazy danych"):
-    st.dataframe(df)
+st.markdown("---")
+with st.expander("🔍 Podgląd bazy danych (Raw Data)"):
+    st.dataframe(df, use_container_width=True)

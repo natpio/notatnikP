@@ -3,149 +3,129 @@ from streamlit_gsheets import GSheetsConnection
 from streamlit_calendar import calendar
 import pandas as pd
 import uuid
-import plotly.express as px
 from datetime import datetime, timedelta
 
-# --- SETTINGS ---
-st.set_page_config(page_title="SQM Logistics Hub", page_icon="🚀", layout="wide")
+# --- KONFIGURACJA ---
+st.set_page_config(page_title="SQM LOGISTICS", page_icon="🚛", layout="wide")
 
-# --- CUSTOM CSS: DARK COUNTRY MODERN ---
+# --- MINIMALISTYCZNY DESIGN OPERACYJNY ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Inter:wght@300;600&display=swap');
-
-    .stApp { background-color: #1a1a1a; color: #e0e0e0; }
+    .stApp { background-color: #f8f9fa; color: #1a1a1a; }
     
-    /* Panele operacyjne */
-    div[data-testid="stVerticalBlock"] > div.stVerticalBlock {
-        background-color: #262626;
-        padding: 25px;
-        border-radius: 20px;
-        border: 1px solid #3d3d3d;
-    }
-
-    /* Nagłówek futurystyczny */
-    .logo-text {
-        font-family: 'Syncopate', sans-serif;
-        font-size: 2.5rem;
-        background: linear-gradient(90deg, #d4af37, #8d6e63);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 700;
-    }
-
-    /* Customowe metryki */
-    .metric-box {
-        background: #333333;
-        border-bottom: 4px solid #d4af37;
-        padding: 20px;
+    /* Panele boczne i karty */
+    [data-testid="stVerticalBlock"] > div.stVerticalBlock {
+        background-color: #ffffff;
+        padding: 1.5rem;
         border-radius: 10px;
-        text-align: center;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
-    /* Kalendarz w trybie Dark */
-    .fc { background: #262626 !important; color: white !important; border: none !important; }
-    .fc-daygrid-day:hover { background: #333333 !important; }
-    .fc-toolbar-title { color: #d4af37 !important; font-family: 'Syncopate'; }
+    /* Przyciski */
+    .stButton>button {
+        width: 100%;
+        background-color: #212529 !important;
+        color: white !important;
+        font-weight: bold;
+        border-radius: 5px !important;
+        height: 45px;
+    }
+
+    /* Nagłówki */
+    h1, h2, h3 { color: #212529 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+    /* Kalendarz */
+    .fc { background: white !important; padding: 10px; border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- DATA ENGINE ---
+# --- POŁĄCZENIE ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-def get_data():
+def load_data():
     df = conn.read(ttl="0s")
-    # Zabezpieczenie kolumn
-    cols = ["Date", "Note", "Type", "LDM", "Priority", "ID"]
-    for col in cols:
-        if col not in df.columns: df[col] = 0 if col == "LDM" else ""
+    if "LDM" not in df.columns: df["LDM"] = 0.0
     return df
 
 def save_data(df):
     conn.update(data=df)
     st.cache_data.clear()
 
-df = get_data()
+df = load_data()
 
-# --- TOP BAR: HUB OVERVIEW ---
-st.markdown('<p class="logo-text">SQM LOGISTICS HUB</p>', unsafe_allow_html=True)
+# --- INTERFEJS ---
+st.title("🚛 SQM: Zarządzanie Transportem i Przestrzenią")
 
-m1, m2, m3, m4 = st.columns(4)
-with m1:
-    st.markdown(f'<div class="metric-box"><small>STATUS FLOTY</small><h2>AKTYWNA</h2></div>', unsafe_allow_html=True)
-with m2:
-    today_ldm = df[df['Date'] == datetime.now().strftime("%Y-%m-%d")]['LDM'].astype(float).sum()
-    st.markdown(f'<div class="metric-box"><small>WYKORZYSTANIE LDM (DZIŚ)</small><h2>{today_ldm} / 13.6</h2></div>', unsafe_allow_html=True)
-with m3:
-    pending = len(df[df['Date'] >= datetime.now().strftime("%Y-%m-%d")])
-    st.markdown(f'<div class="metric-box"><small>OPERACJE W TOKU</small><h2>{pending}</h2></div>', unsafe_allow_html=True)
-with m4:
-    st.markdown(f'<div class="metric-box"><small>POZIOM ALARMÓW</small><h2 style="color:#d4af37">NISKI</h2></div>', unsafe_allow_html=True)
+col_left, col_right = st.columns([1, 2], gap="large")
 
-st.write("---")
-
-# --- MAIN SECTION: TRÓJPODZIAŁ ---
-col_sidebar, col_mid, col_chart = st.columns([1, 2, 1])
-
-# 1. KONTROLA (LEWA)
-with col_sidebar:
-    st.subheader("🛠️ KONSOLA WPISÓW")
-    with st.form("hub_form"):
-        date = st.date_input("Data operacji")
-        op_type = st.selectbox("Typ", ["🚛 Pełny Transport", "📦 Doładunek", "⏱️ Slot Rozładunkowy", "🛠️ Przegląd"])
-        ldm = st.number_input("Zajętość naczepy (LDM)", min_value=0.0, max_value=13.6, step=0.4)
-        note = st.text_area("Szczegóły / Nr Naczepy")
-        prio = st.select_slider("Priorytet", options=["Standard", "KRYTYCZNY"])
+# LEWA KOLUMNA: OPERACJE
+with col_left:
+    st.subheader("🛠️ Dodaj Zdarzenie")
+    with st.form("main_form", clear_on_submit=True):
+        d = st.date_input("Data", value=datetime.now())
+        t = st.selectbox("Typ", ["🚛 Pełny Transport", "📦 Doładunek", "⏱️ Slot Rozładunkowy", "🛠️ Serwis/Inne"])
+        l = st.number_input("Zajęte metry ładowne (LDM)", min_value=0.0, max_value=13.6, step=0.1, help="Standardowa naczepa to 13.6 LDM")
+        n = st.text_area("Szczegóły (Nr naczepy, kierowca, miejsce)")
         
-        if st.form_submit_button("AUTORYZUJ I ZAPISZ"):
-            new_data = pd.DataFrame([{"Date": str(date), "Note": note, "Type": op_type, "LDM": ldm, "Priority": prio, "ID": str(uuid.uuid4())}])
-            df = pd.concat([df, new_data], ignore_index=True)
+        if st.form_submit_button("ZAPISZ"):
+            new_row = pd.DataFrame([{"Date": str(d), "Note": n, "Type": t, "LDM": l, "ID": str(uuid.uuid4())}])
+            df = pd.concat([df, new_row], ignore_index=True)
             save_data(df)
+            st.success("Wpis dodany pomyślnie.")
             st.rerun()
 
-    if not df.empty:
-        st.subheader("🗑️ USUWANIE")
-        to_del = st.selectbox("Wybierz wpis", df.index, format_func=lambda x: f"{df.at[x,'Date']} - {df.at[x,'Note'][:15]}")
-        if st.button("USUŃ Z BAZY"):
-            df = df.drop(to_del)
-            save_data(df)
-            st.rerun()
+    st.markdown("---")
+    st.subheader("📋 Plan na najbliższe 2 dni")
+    today = datetime.now().strftime("%Y-%m-%d")
+    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    plan_df = df[df['Date'].isin([today, tomorrow])].sort_values('Date')
+    if not plan_df.empty:
+        for _, row in plan_df.iterrows():
+            with st.container():
+                st.markdown(f"**{row['Date']}** | {row['Type']}")
+                st.caption(f"{row['Note']} (Zajęte: {row['LDM']} LDM)")
+    else:
+        st.info("Brak zaplanowanych zadań na dziś i jutro.")
 
-# 2. WIZUALIZACJA (ŚRODEK)
-with col_mid:
-    st.subheader("📅 HARMONOGRAM OPERACYJNY")
+# PRAWA KOLUMNA: HARMONOGRAM I KONTROLA
+with col_right:
+    st.subheader("📅 Harmonogram Miesięczny")
+    
     events = []
     for _, row in df.iterrows():
         if len(str(row['Date'])) >= 10:
             events.append({
-                "title": f"{row['Type']} ({row['LDM']} LDM)",
+                "title": f"[{row['LDM']} LDM] {row['Note'][:20]}...",
                 "start": str(row['Date']),
-                "color": "#d4af37" if row['Priority'] == "KRYTYCZNY" else "#5d4037",
-                "allDay": True
+                "backgroundColor": "#343a40" if row['Type'] == "🚛 Pełny Transport" else "#adb5bd",
+                "borderColor": "#212529"
             })
-    
+
     calendar(events=events, options={
+        "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,listWeek"},
         "initialView": "dayGridMonth",
-        "headerToolbar": {"left": "prev,next", "center": "title", "right": "dayGridMonth,listWeek"},
-        "locale": "pl", "height": "600px"
-    }, key="hub_cal")
+        "firstDay": 1,
+        "locale": "pl",
+        "height": "650px"
+    }, key="sqm_calendar")
 
-# 3. ANALITYKA (PRAWA)
-with col_chart:
-    st.subheader("📈 OBCIĄŻENIE LOGISTYKI")
-    if not df.empty:
-        # Wykres ilości typów transportów
-        fig = px.pie(df, names='Type', hole=.4, color_discrete_sequence=['#d4af37', '#8d6e63', '#3d3d3d', '#5d4037'])
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Wykres LDM w czasie
-        st.write("**Planowane zajęcie naczep (LDM):**")
-        df_chart = df.groupby('Date')['LDM'].sum().reset_index()
-        fig2 = px.bar(df_chart.tail(7), x='Date', y='LDM', color_discrete_sequence=['#d4af37'])
-        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
-        st.plotly_chart(fig2, use_container_width=True)
+    with st.expander("🗑️ Usuwanie wpisów"):
+        if not df.empty:
+            to_del = st.selectbox("Wybierz wpis do usunięcia", df.index, 
+                                 format_func=lambda x: f"{df.at[x,'Date']} - {df.at[x,'Note'][:30]}")
+            if st.button("POTWIERDŹ USUNIĘCIE"):
+                df = df.drop(to_del)
+                save_data(df)
+                st.rerun()
 
-# --- DATA TABLE ---
-with st.expander("📄 ARCHIWUM DANYCH"):
+# --- DOLNY PANEL: PODGLĄD DANYCH ---
+st.markdown("---")
+with st.expander("🔍 Pełny podgląd bazy danych (Google Sheets)"):
+    # Obliczamy sumę LDM na dzień dla podglądu
+    daily_sum = df.groupby('Date')['LDM'].sum().reset_index()
+    st.write("**Podsumowanie zajętości LDM wg dni:**")
+    st.dataframe(daily_sum, hide_index=True)
+    st.write("**Wszystkie wpisy:**")
     st.dataframe(df.sort_values('Date', ascending=False), use_container_width=True)

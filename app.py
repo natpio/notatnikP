@@ -3,154 +3,156 @@ from streamlit_gsheets import GSheetsConnection
 from streamlit_calendar import calendar
 import pandas as pd
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# Konfiguracja SQM
-st.set_page_config(page_title="SQM Logi-Station", page_icon="🤠", layout="wide")
+# --- KONFIGURACJA EKOSYSTEMU ---
+st.set_page_config(page_title="SQM Control Tower", page_icon="🏗️", layout="wide")
 
-# STYL: RUSTIC MODERN DASHBOARD
+# --- DESIGN: CYBER-RUSTIC (Nowoczesna logistyka + styl country) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Lora:ital,wght@0,400;1,700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto+Condensed:wght@300;700&display=swap');
+
+    .stApp { background: linear-gradient(135deg, #e8e2d9 0%, #d7ccc8 100%); color: #2b1d12; }
     
-    .stApp { background-color: #e8e2d9; color: #2b1d12; }
-    
-    section[data-testid="stSidebar"] {
-        background-color: #3e2723 !important;
-        color: #f4ece2 !important;
-        border-right: 5px solid #8d6e63;
-    }
-    
-    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] p {
-        color: #f4ece2 !important;
+    /* Nagłówek Tower */
+    .tower-header {
+        font-family: 'Bebas Neue', cursive;
+        font-size: 3rem;
+        letter-spacing: 4px;
+        color: #3e2723;
+        text-align: left;
+        border-bottom: 5px solid #8d6e63;
+        margin-bottom: 20px;
     }
 
-    .metric-card {
-        background-color: #ffffff99;
+    /* Karty Timeline */
+    .timeline-card {
+        background: white;
         padding: 15px;
-        border-radius: 10px;
-        border-left: 8px solid #8d6e63;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
-        text-align: center;
+        border-radius: 0px 15px 15px 0px;
+        border-left: 10px solid #5d4037;
+        margin-bottom: 10px;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.05);
     }
 
+    /* Kalendarz Szklany */
     .fc { 
-        background-color: #fff; 
-        border-radius: 20px; 
-        padding: 25px;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        background: rgba(255, 255, 255, 0.7) !important;
+        backdrop-filter: blur(10px);
+        border-radius: 25px !important;
+        border: 1px solid white !important;
+        padding: 20px;
     }
-    
-    .stButton>button { 
-        border-radius: 30px !important;
-        background-color: #8d6e63 !important;
-        color: white !important;
-        border: none !important;
-        width: 100%;
+
+    /* Przyciski Akcji */
+    .stButton>button {
+        border-radius: 0px !important;
+        background: #3e2723 !important;
+        color: #f4ece2 !important;
+        border: 1px solid #8d6e63 !important;
+        height: 50px;
+        font-family: 'Bebas Neue';
+        font-size: 1.2rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Połączenie
+# --- LOGIKA DANYCH ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     return conn.read(ttl="0s")
 
-def save_data(dataframe):
-    conn.update(data=dataframe)
+def save_data(df):
+    conn.update(data=df)
     st.cache_data.clear()
 
-# Załadowanie i czyszczenie danych
 try:
     df = load_data()
-    # Konwersja kolumny Date na string, aby uniknąć problemów z typami
-    if not df.empty:
-        df['Date'] = df['Date'].astype(str)
+    if "Priority" not in df.columns: df["Priority"] = "Normal"
+    df['Date'] = df['Date'].astype(str)
 except:
-    df = pd.DataFrame(columns=["Date", "Note", "Type", "ID"])
+    df = pd.DataFrame(columns=["Date", "Note", "Type", "Priority", "ID"])
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.markdown("# 🤠 SQM LOGI\n**STATION v2.0**")
-    st.markdown("---")
+# --- UKŁAD STRONY ---
+st.markdown('<div class="tower-header">SQM LOGISTICS CONTROL TOWER</div>', unsafe_allow_html=True)
+
+col_timeline, col_main, col_tools = st.columns([1, 2.5, 1], gap="medium")
+
+# --- STREFA 1: TIMELINE (Najbliższe 48h) ---
+with col_timeline:
+    st.subheader("⚡ NASTĘPNE 48H")
+    today = datetime.now()
+    tomorrow = today + timedelta(days=2)
     
-    st.subheader("➕ Nowy Wpis")
-    with st.form("sidebar_form", clear_on_submit=True):
-        f_date = st.date_input("Data", value=datetime.now())
-        f_type = st.selectbox("Kategoria", ["🚛 Transport", "📦 Załadunek", "⏱️ Slot", "🛠️ Serwis", "📝 Inne"])
-        f_note = st.text_area("Szczegóły")
-        
-        if st.form_submit_button("DODAJ"):
-            new_row = pd.DataFrame([{
-                "Date": f_date.strftime("%Y-%m-%d"), 
-                "Note": f_note, 
-                "Type": f_type, 
-                "ID": str(uuid.uuid4())
-            }])
-            df = pd.concat([df, new_row], ignore_index=True)
-            save_data(df)
-            st.rerun()
-
-    st.markdown("---")
+    # Filtrowanie wpisów na teraz
     if not df.empty:
-        to_del = st.selectbox("Usuń wpis", options=df.index, format_func=lambda x: f"{df.at[x, 'Date']} - {df.at[x, 'Type']}")
-        if st.button("❌ USUŃ"):
-            df = df.drop(to_del)
-            save_data(df)
-            st.rerun()
+        df_now = df[df['Date'].between(today.strftime("%Y-%m-%d"), tomorrow.strftime("%Y-%m-%d"))]
+        if df_now.empty:
+            st.info("Brak pilnych zadań.")
+        for _, row in df_now.sort_values('Date').iterrows():
+            prio_color = "#d32f2f" if row.get('Priority') == "Wysoki" else "#5d4037"
+            st.markdown(f"""
+            <div class="timeline-card" style="border-left-color: {prio_color}">
+                <small>{row['Date']}</small><br>
+                <b>{row['Type']}</b><br>
+                {row['Note']}
+            </div>
+            """, unsafe_allow_html=True)
 
-# --- PANEL GŁÓWNY ---
-
-m1, m2, m3 = st.columns(3)
-with m1:
-    st.markdown(f'<div class="metric-card"><h3>📅 Dzisiaj</h3><p>{datetime.now().strftime("%d %B")}</p></div>', unsafe_allow_html=True)
-with m2:
-    # BEZPIECZNE LICZENIE ZADAŃ (Naprawa błędu TypeError)
-    try:
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        if not df.empty:
-            # Filtrujemy tylko wiersze, które mają poprawny format daty
-            valid_dates = df[df['Date'].str.match(r'\d{4}-\d{2}-\d{2}', na=False)]
-            upcoming = len(valid_dates[valid_dates['Date'] >= today_str])
-        else:
-            upcoming = 0
-    except:
-        upcoming = 0
-    st.markdown(f'<div class="metric-card"><h3>🚚 Nadchodzące</h3><p>{upcoming} zadań</p></div>', unsafe_allow_html=True)
-with m3:
-    st.markdown(f'<div class="metric-card"><h3>🏢 Firma</h3><p>SQM Solutions</p></div>', unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# Kalendarz
-calendar_events = []
-color_map = {
-    "🚛 Transport": "#5d4037", "📦 Załadunek": "#8d6e63",
-    "⏱️ Slot": "#4e342e", "🛠️ Serwis": "#a1887f", "📝 Inne": "#d7ccc8"
-}
-
-if not df.empty:
+# --- STREFA 2: MAIN RADAR (Kalendarz) ---
+with col_main:
+    st.subheader("🗺️ RADAR OPERACYJNY")
+    
+    events = []
+    colors = {"🚛 Transport": "#3e2723", "📦 Załadunek": "#8d6e63", "⏱️ Slot": "#bf360c", "🛠️ Serwis": "#546e7a"}
+    
     for _, row in df.iterrows():
-        # Sprawdzamy czy data nie jest pusta i ma sensowny format
-        if pd.notna(row['Date']) and len(str(row['Date'])) >= 10:
-            calendar_events.append({
-                "title": f"{row.get('Type', '📝')} | {row['Note']}",
+        if len(str(row['Date'])) >= 10:
+            events.append({
+                "title": f"{row['Type']} | {row['Note']}",
                 "start": str(row['Date']),
-                "id": str(row['ID']),
-                "color": color_map.get(row.get('Type'), "#8d6e63"),
-                "allDay": True
+                "backgroundColor": "#d32f2f" if row.get('Priority') == "Wysoki" else colors.get(row['Type'], "#8d6e63"),
+                "borderColor": "white"
             })
 
-st.markdown("### 🗺️ Widok Operacyjny")
-calendar(
-    events=calendar_events,
-    options={
-        "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,listMonth"},
-        "initialView": "dayGridMonth", "firstDay": 1, "locale": "pl", "height": "700px",
-    },
-    key="modern_cal"
-)
+    calendar(events=events, options={
+        "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,listWeek"},
+        "initialView": "dayGridMonth",
+        "locale": "pl",
+        "height": "700px"
+    }, key="tower_radar")
 
-with st.expander("📊 Arkusz"):
+# --- STREFA 3: COMMAND CENTER (Narzędzia) ---
+with col_tools:
+    st.subheader("🕹️ KOMENDY")
+    
+    with st.expander("🆕 NOWY TRANSPORT", expanded=True):
+        with st.form("add_tower"):
+            d = st.date_input("Data")
+            t = st.selectbox("Typ", ["🚛 Transport", "📦 Załadunek", "⏱️ Slot", "🛠️ Serwis"])
+            p = st.select_slider("Priorytet", options=["Normal", "Wysoki"])
+            n = st.text_area("Notatka")
+            if st.form_submit_button("WYŚLIJ"):
+                new = pd.DataFrame([{"Date": d.strftime("%Y-%m-%d"), "Note": n, "Type": t, "Priority": p, "ID": str(uuid.uuid4())}])
+                df = pd.concat([df, new], ignore_index=True)
+                save_data(df)
+                st.rerun()
+
+    with st.expander("🗑️ USUWANIE"):
+        if not df.empty:
+            sel = st.selectbox("Wybierz do usunięcia", df.index, format_func=lambda x: f"{df.at[x,'Date']} - {df.at[x,'Note'][:15]}")
+            if st.button("POTWIERDŹ USUNIĘCIE"):
+                df = df.drop(sel)
+                save_data(df)
+                st.rerun()
+
+    st.markdown("---")
+    st.write("📊 **STATYSTYKI**")
+    st.write(f"Wszystkich wpisów: {len(df)}")
+    st.progress(len(df)/100) # Progres do "pełnego miesiąca" (przykład)
+
+# --- STOPKA ---
+with st.expander("📝 LOGI SYSTEMOWE (ARKUSZ)"):
     st.dataframe(df, use_container_width=True)

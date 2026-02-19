@@ -8,19 +8,17 @@ from datetime import datetime
 # --- KONFIGURACJA ---
 st.set_page_config(page_title="SQM Country Log", page_icon="🤠", layout="wide")
 
-# --- DESIGN: EXTREME COUNTRY ---
+# --- DESIGN: EXTREME COUNTRY (Wszystkie notatki na kartkach) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Rye&family=Permanent+Marker&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Rye&display=swap');
 
-    /* Tło - Ciemne, surowe drewno */
     .stApp {
         background-color: #2b1d12;
         background-image: url("https://www.transparenttextures.com/patterns/dark-wood.png");
         color: #d7ccc8;
     }
 
-    /* Nagłówek w stylu Wanted Poster */
     .wanted-header {
         font-family: 'Rye', cursive;
         font-size: 3.5rem;
@@ -32,21 +30,22 @@ st.markdown("""
         padding: 20px;
     }
 
-    /* Kartki notatek - "przybite" do drewna */
+    /* Styl kartki przybitej do drewna */
     .note-paper {
         background-color: #e2cfb6;
         background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
         color: #2b1d12;
         padding: 25px;
-        margin: 20px 10px;
+        margin: 20px 0px;
         border-radius: 2px;
         box-shadow: 10px 10px 20px rgba(0,0,0,0.6);
         font-family: 'Special Elite', cursive;
         position: relative;
         border: 1px solid #c0a080;
+        min-height: 100px;
     }
 
-    /* Efekt gwoździa */
+    /* Gwóźdź */
     .note-paper::before {
         content: '';
         position: absolute;
@@ -60,68 +59,44 @@ st.markdown("""
         transform: translateX(-50%);
     }
 
-    /* Formularz */
-    .stForm {
-        background: rgba(0,0,0,0.3);
-        padding: 20px;
-        border-radius: 10px;
-        border: 2px solid #5d4037;
-    }
-
     .stTextArea textarea {
         background-color: #f5f5f5 !important;
         font-family: 'Special Elite', cursive !important;
-        font-size: 1.1rem !important;
     }
 
-    /* Przyciski - żeliwny styl */
     .stButton>button {
         background-color: #4e342e !important;
         color: #d4af37 !important;
         font-family: 'Rye', cursive !important;
-        font-size: 1.2rem !important;
         border: 2px solid #d4af37 !important;
-        border-radius: 0px !important;
-        box-shadow: 4px 4px 0px #000;
+        width: 100%;
     }
 
-    .stButton>button:hover {
-        background-color: #d4af37 !important;
-        color: #2b1d12 !important;
-    }
-
-    /* Kalendarz na starej tablicy */
-    .fc { 
-        background: #fdf5e6 !important; 
-        color: #2b1d12 !important; 
-        padding: 10px; 
-        border: 5px solid #5d4037;
-    }
+    .fc { background: #fdf5e6 !important; color: #2b1d12 !important; border: 5px solid #5d4037; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- POŁĄCZENIE Z DANYCH ---
+# --- BEZPIECZNE POŁĄCZENIE ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
-    return conn.read(ttl="0s")
-
-def save_data(df):
-    conn.update(data=df)
-    st.cache_data.clear()
+    try:
+        # ttl="1s" stabilizuje API i zapobiega nadmiernym zapytaniom powodującym błędy
+        return conn.read(ttl="1s")
+    except Exception:
+        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID"])
 
 df = load_data()
 
 # --- INTERFEJS ---
-st.markdown('<div class="wanted-header">NOTES</div>', unsafe_allow_html=True)
+st.markdown('<div class="wanted-header">SQM LOGISTICS TERMINAL</div>', unsafe_allow_html=True)
 
 col_input, col_display = st.columns([1, 1.2], gap="large")
 
 with col_input:
-    st.subheader("🤠 Rzuć notatkę na stół")
-    
+    st.subheader("🤠 Przybij nową notatkę")
     with st.form("hard_country_form", clear_on_submit=True):
-        note_txt = st.text_area("Co się dzieje?", height=180, placeholder="Np. WhatsApp od klienta: Transport potwierdzony na 8:00...")
+        note_txt = st.text_area("", height=150, placeholder="Dzwonił kierowca... / Mail od cyryl wjazdówki...")
         submit_btn = st.form_submit_button("PRZYBIJ DO TABLICY")
         
         if submit_btn and note_txt:
@@ -133,25 +108,35 @@ with col_input:
                 "ID": str(uuid.uuid4())
             }])
             df = pd.concat([df, new_entry], ignore_index=True)
-            save_data(df)
+            conn.update(data=df)
+            st.cache_data.clear()
             st.rerun()
 
     st.markdown("---")
-    st.subheader("📜 Ostatnie meldunki")
+    st.subheader("📜 Tablica wszystkich notatek")
     
     if not df.empty:
-        # 3 najświeższe "przypięte" kartki
-        recent = df.tail(3).iloc[::-1]
-        for i, row in recent.iterrows():
+        # Sortujemy od najnowszych na górze
+        sorted_df = df.sort_values(by=['Date', 'Timestamp'], ascending=False)
+        for i, row in sorted_df.iterrows():
+            # Każda notatka jako karteczka
             st.markdown(f"""
             <div class="note-paper">
-                <div style="text-align:right; font-size:0.7rem; color:#555;">ID: {row['ID'][:8]}</div>
-                <div style="font-size: 0.9rem; border-bottom: 1px solid #999; margin-bottom: 10px;">
-                    📅 {row['Date']} | ⏰ {row['Timestamp']}
+                <div style="font-size: 0.8rem; border-bottom: 1px solid #999; margin-bottom: 8px; color: #555;">
+                    📅 {row['Date']} | ⏰ {row['Timestamp']} | <small>ID: {str(row['ID'])[:8]}</small>
                 </div>
-                <div style="font-size: 1.2rem; line-height: 1.4;">{row['Note']}</div>
+                <div style="font-size: 1.1rem; line-height: 1.3;">{row['Note']}</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Mały przycisk usuwania pod każdą kartką
+            if st.button(f"Spal tę kartkę (ID: {str(row['ID'])[:8]})", key=f"del_{row['ID']}"):
+                df = df[df['ID'] != row['ID']]
+                conn.update(data=df)
+                st.cache_data.clear()
+                st.rerun()
+    else:
+        st.info("Tablica jest pusta.")
 
 with col_display:
     st.subheader("📅 Kalendarz Szeryfa")
@@ -161,7 +146,7 @@ with col_display:
         for _, row in df.iterrows():
             if pd.notna(row['Date']):
                 calendar_events.append({
-                    "title": f"🕒 {row['Timestamp']} - {row['Note'][:25]}...",
+                    "title": f"🕒 {row['Timestamp']} - {row['Note'][:20]}...",
                     "start": str(row['Date']),
                     "color": "#4e342e"
                 })
@@ -172,17 +157,8 @@ with col_display:
             "initialView": "dayGridMonth",
             "firstDay": 1,
             "locale": "pl",
-            "height": 580,
+            "height": 600,
             "selectable": False
         },
         key="ultra_country_cal"
     )
-
-    with st.expander("🛠️ Zarządzaj archiwum (Usuń/Edytuj)"):
-        if not df.empty:
-            st.dataframe(df.sort_values(by=['Date', 'Timestamp'], ascending=False), use_container_width=True)
-            to_burn = st.selectbox("Wybierz wpis do usunięcia", options=df.index, format_func=lambda x: f"{df.at[x,'Date']} - {df.at[x,'Note'][:30]}")
-            if st.button("SPAL NOTATKĘ"):
-                df = df.drop(to_burn)
-                save_data(df)
-                st.rerun()

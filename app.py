@@ -98,7 +98,7 @@ def load_data():
 df = load_data()
 
 # --- NAGŁÓWEK ---
-st.markdown('<div class="wanted-header">SQM LOGISTICS TERMINAL</div>', unsafe_allow_html=True)
+st.markdown('<div class="wanted-header">NOTES</div>', unsafe_allow_html=True)
 
 col_input, col_display = st.columns([1, 1.2], gap="large")
 

@@ -6,76 +6,68 @@ import uuid
 from datetime import datetime
 
 # Konfiguracja SQM
-st.set_page_config(page_title="SQM Notatnik Logistyka", page_icon="🤠", layout="wide")
+st.set_page_config(page_title="SQM Logi-Station", page_icon="🤠", layout="wide")
 
-# ZAAWANSOWANY STYL COUNTRY
+# NOWY STYL: "RUSTIC MODERN DASHBOARD"
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Lora:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Lora:ital,wght@0,400;1,700&display=swap');
     
-    /* Główne tło */
     .stApp { 
-        background-color: #f4ece2; 
-        color: #3e2723; 
+        background-color: #e8e2d9; 
+        color: #2b1d12; 
     }
     
-    /* Nagłówki */
-    h1, h2, h3 { 
-        font-family: 'Special+Elite', serif; 
-        color: #5d4037 !important; 
+    /* Pasek boczny jako centrum dowodzenia */
+    section[data-testid="stSidebar"] {
+        background-color: #3e2723 !important;
+        color: #f4ece2 !important;
+        border-right: 5px solid #8d6e63;
+    }
+    
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] p {
+        color: #f4ece2 !important;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Karty statystyk na górze */
+    .metric-card {
+        background-color: #ffffff99;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 8px solid #8d6e63;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
         text-align: center;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     }
 
-    /* Stylizacja kart */
-    div[data-testid="stVerticalBlock"] > div.stVerticalBlock {
-        background-color: #ffffff77;
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #d7ccc8;
+    /* Stylizacja Kalendarza */
+    .fc { 
+        background-color: #fff; 
+        border-radius: 20px; 
+        padding: 25px;
+        border: none;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    
+    .fc-toolbar-title {
+        font-family: 'Lora', serif !important;
+        font-weight: bold !important;
+        color: #5d4037;
     }
 
-    /* Przyciski */
+    /* Przyciski operacyjne */
     .stButton>button { 
-        width: 100%;
-        background-color: #8d6e63 !important; 
-        color: #ffffff !important; 
+        border-radius: 30px !important;
+        background-color: #8d6e63 !important;
+        color: white !important;
         border: none !important;
-        font-family: 'Lora', serif; 
-        padding: 10px;
-        font-weight: bold;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 0.5rem 2rem !important;
+        transition: all 0.3s ease;
     }
     
     .stButton>button:hover {
-        background-color: #5d4037 !important;
-        transform: translateY(-2px);
-    }
-
-    /* Kalendarz */
-    .fc { 
-        background-color: #ffffff; 
-        padding: 20px; 
-        border-radius: 15px; 
-        border: 2px solid #8d6e63;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-    }
-
-    /* Wygląd zakładek */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: transparent;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #d7ccc8;
-        border-radius: 5px 5px 0 0;
-        padding: 10px 20px;
-        color: #5d4037;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #8d6e63 !important;
-        color: white !important;
+        background-color: #a1887f !important;
+        transform: scale(1.05);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -90,104 +82,91 @@ def save_data(dataframe):
     conn.update(data=dataframe)
     st.cache_data.clear()
 
-# Ładowanie danych
+# Inicjalizacja danych
 try:
     df = load_data()
-    if "ID" not in df.columns:
-        df["ID"] = [str(uuid.uuid4()) for _ in range(len(df))]
+    if "Type" not in df.columns: df["Type"] = "Notatka"
+    if "ID" not in df.columns: df["ID"] = [str(uuid.uuid4()) for _ in range(len(df))]
 except:
     df = pd.DataFrame(columns=["Date", "Note", "Type", "ID"])
 
-# --- INTERFEJS ---
+# --- SIDEBAR: CENTRUM STEROWANIA ---
+with st.sidebar:
+    st.markdown("# 🤠 SQM LOGI\n**STATION v2.0**")
+    st.markdown("---")
+    
+    st.subheader("➕ Nowy Wpis")
+    with st.form("sidebar_form", clear_on_submit=True):
+        f_date = st.date_input("Data", value=datetime.now())
+        f_type = st.selectbox("Kategoria", ["🚛 Transport", "📦 Załadunek", "⏱️ Slot", "🛠️ Serwis", "📝 Inne"])
+        f_note = st.text_area("Szczegóły", placeholder="Co, gdzie, kto?")
+        
+        if st.form_submit_button("DODAJ DO HARMONOGRAMU"):
+            new_row = pd.DataFrame([{"Date": f_date.strftime("%Y-%m-%d"), "Note": f_note, "Type": f_type, "ID": str(uuid.uuid4())}])
+            df = pd.concat([df, new_row], ignore_index=True)
+            save_data(df)
+            st.success("Dodano!")
+            st.rerun()
 
-st.title("🤠 SQM: Logistyka i Plany")
-st.markdown("<p style='text-align: center; font-style: italic;'>Zarządzanie transportem w starym dobrym stylu</p>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("⚙️ Zarządzanie")
+    if not df.empty:
+        to_delete = st.selectbox("Usuń wpis", options=df.index, format_func=lambda x: f"{df.at[x, 'Date']} - {df.at[x, 'Type']}")
+        if st.button("❌ USUŃ ZAZNACZONY"):
+            df = df.drop(to_delete)
+            save_data(df)
+            st.warning("Usunięto.")
+            st.rerun()
 
-# Przygotowanie zdarzeń
+# --- PANEL GŁÓWNY ---
+
+# 1. Statystyki na górze
+m1, m2, m3 = st.columns(3)
+with m1:
+    st.markdown(f'<div class="metric-card"><h3>📅 Dzisiaj</h3><p>{datetime.now().strftime("%d %B")}</p></div>', unsafe_allow_html=True)
+with m2:
+    total_tasks = len(df[df['Date'] >= datetime.now().strftime("%Y-%m-%d")])
+    st.markdown(f'<div class="metric-card"><h3>🚚 Nadchodzące</h3><p>{total_tasks} zadań</p></div>', unsafe_allow_html=True)
+with m3:
+    st.markdown(f'<div class="metric-card"><h3>🏢 Firma</h3><p>SQM Solutions</p></div>', unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 2. Kalendarz (Główny punkt programu)
 calendar_events = []
-if not df.empty:
-    for _, row in df.iterrows():
-        if pd.notna(row['Date']) and str(row['Date']).strip() != "":
-            # Różne kolory dla typów (opcjonalnie)
-            event_color = "#8d6e63"
-            if "Type" in df.columns:
-                if row['Type'] == "Załadunek": event_color = "#455a64"
-                if row['Type'] == "Slot": event_color = "#6d4c41"
+# Mapowanie kolorów dla typów
+color_map = {
+    "🚛 Transport": "#5d4037",
+    "📦 Załadunek": "#8d6e63",
+    "⏱️ Slot": "#4e342e",
+    "🛠️ Serwis": "#a1887f",
+    "📝 Inne": "#d7ccc8"
+}
 
-            calendar_events.append({
-                "title": f"[{row.get('Type', 'Notatka')}] {row['Note']}",
-                "start": str(row['Date']),
-                "id": str(row['ID']),
-                "color": event_color
-            })
+for _, row in df.iterrows():
+    if pd.notna(row['Date']) and str(row['Date']).strip() != "":
+        calendar_events.append({
+            "title": f"{row.get('Type', '📝')} | {row['Note']}",
+            "start": str(row['Date']),
+            "id": str(row['ID']),
+            "color": color_map.get(row.get('Type'), "#8d6e63"),
+            "allDay": True
+        })
 
-# Układ główny
-col_cal, col_side = st.columns([2.5, 1], gap="large")
+# Wyświetlenie kalendarza
+st.markdown("### 🗺️ Widok Operacyjny")
+calendar(
+    events=calendar_events,
+    options={
+        "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,listMonth"},
+        "initialView": "dayGridMonth",
+        "firstDay": 1,
+        "locale": "pl",
+        "height": "700px",
+    },
+    key="modern_cal"
+)
 
-with col_cal:
-    st.markdown("### 📅 Harmonogram")
-    state = calendar(
-        events=calendar_events,
-        options={
-            "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth"},
-            "firstDay": 1,
-            "locale": "pl",
-            "height": 650
-        },
-        key="sqm_calendar_pro"
-    )
-    
-    if state.get("dateClick"):
-        st.session_state["clicked_date"] = state["dateClick"]["date"].split("T")[0]
-
-with col_side:
-    st.markdown("### 🛠️ Panel Akcji")
-    
-    tab_add, tab_edit = st.tabs(["🆕 Dodaj", "✏️ Edycja"])
-    
-    with tab_add:
-        with st.container():
-            def_date = st.session_state.get("clicked_date", datetime.now().strftime("%Y-%m-%d"))
-            d_val = st.date_input("Data zdarzenia", value=datetime.strptime(def_date, "%Y-%m-%d"))
-            t_val = st.selectbox("Typ", ["Notatka", "Załadunek", "Rozładunek", "Slot", "Serwis"])
-            n_val = st.text_area("Szczegóły (np. nr naczepy, kierowca)", placeholder="Wpisz tutaj...")
-            
-            if st.button("➕ ZAPISZ W SYSTEMIE"):
-                new_entry = pd.DataFrame([{
-                    "Date": d_val.strftime("%Y-%m-%d"), 
-                    "Note": n_val, 
-                    "Type": t_val,
-                    "ID": str(uuid.uuid4())
-                }])
-                df = pd.concat([df, new_entry], ignore_index=True)
-                save_data(df)
-                st.success("Zapisano pomyślnie!")
-                st.rerun()
-
-    with tab_edit:
-        if not df.empty:
-            idx = st.selectbox("Wybierz wpis do zmiany", options=df.index, 
-                               format_func=lambda x: f"{df.at[x, 'Date']} - {str(df.at[x, 'Note'])[:15]}...")
-            
-            e_type = st.selectbox("Zmień Typ", ["Notatka", "Załadunek", "Rozładunek", "Slot", "Serwis"], 
-                                  index=["Notatka", "Załadunek", "Rozładunek", "Slot", "Serwis"].index(df.at[idx, 'Type']) if "Type" in df.columns else 0)
-            e_note = st.text_area("Popraw szczegóły", value=df.at[idx, 'Note'])
-            
-            col_u, col_d = st.columns(2)
-            with col_u:
-                if st.button("💾 ZMIEŃ"):
-                    df.at[idx, 'Note'] = e_note
-                    df.at[idx, 'Type'] = e_type
-                    save_data(df)
-                    st.rerun()
-            with col_d:
-                if st.button("🗑️ USUŃ"):
-                    df = df.drop(idx)
-                    save_data(df)
-                    st.rerun()
-        else:
-            st.info("Brak wpisów.")
-
-st.markdown("---")
-with st.expander("🔍 Podgląd bazy danych (Raw Data)"):
+# 3. Dolna tabela
+with st.expander("📊 Pełna Baza Danych (Arkusz)"):
     st.dataframe(df, use_container_width=True)

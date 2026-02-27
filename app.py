@@ -6,227 +6,222 @@ import uuid
 from datetime import datetime
 
 # --- KONFIGURACJA ---
-st.set_page_config(page_title="SQM Logistics: The One with the Plan", page_icon="☕", layout="wide")
+st.set_page_config(page_title="SQM: The One Where We Ship It", page_icon="🟡", layout="wide")
 
-# --- DESIGN: FRIENDS STYLE (Central Perk & Monica's Apartment) ---
+# --- DESIGN: THE ULTIMATE FRIENDS EXPERIENCE ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Permanent+Marker&family=Short+Stack&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Varela+Round&family=Kalam:wght@300;700&display=swap');
 
-    /* Tło w kolorze fioletowym (ściany u Moniki) */
+    :root {
+        --friends-red: #e74c3c;
+        --friends-yellow: #f1c40f;
+        --friends-blue: #3498db;
+        --monica-purple: #6a5acd;
+    }
+
     .stApp {
-        background-color: #6a5acd;
-        background-image: radial-gradient(#7b68ee 1px, transparent 1px);
-        background-size: 20px 20px;
-        color: #ffffff;
+        background-color: var(--monica-purple);
+        background-image: url("https://www.transparenttextures.com/patterns/cubes.png");
     }
 
-    /* Nagłówek w stylu logo serialu */
-    .friends-header {
+    /* Nagłówek z kropkami */
+    .friends-logo {
         font-family: 'Permanent Marker', cursive;
-        font-size: 4.5rem;
+        font-size: 5rem;
         text-align: center;
-        color: #ffffff;
-        text-shadow: 
-            4px 4px 0px #e74c3c, /* Czerwona kropka */
-            8px 8px 0px #f1c40f, /* Żółta kropka */
-            12px 12px 0px #3498db; /* Niebieska kropka */
-        margin-bottom: 40px;
-        letter-spacing: 5px;
-    }
-
-    /* Styl kartki - kawiarniane menu Central Perk */
-    .central-perk-note {
-        background-color: #2e7d32; /* Ciemnozielony jak sofa/logo */
-        border: 8px solid #3e2723; /* Drewniana rama */
-        border-radius: 15px;
-        padding: 20px;
-        color: #fff176;
-        font-family: 'Short Stack', cursive;
-        box-shadow: 10px 10px 0px rgba(0,0,0,0.3);
-        margin-bottom: 25px;
-    }
-
-    .timestamp-label {
-        color: #ffa726;
-        font-weight: bold;
-        border-bottom: 1px dashed #ffa726;
+        color: white;
         margin-bottom: 10px;
-        font-size: 0.9rem;
     }
+    .dot-red { color: var(--friends-red); }
+    .dot-yellow { color: var(--friends-yellow); }
+    .dot-blue { color: var(--friends-blue); }
 
-    /* Przyciski jak z tablicy kredowej */
-    .stButton>button {
-        background-color: #1a1a1a !important;
-        color: white !important;
-        font-family: 'Permanent Marker', cursive !important;
-        border: 2px solid #ffffff !important;
-        border-radius: 0px !important;
-        transition: 0.3s;
-        text-transform: uppercase;
-    }
-
-    .stButton>button:hover {
-        background-color: #ffffff !important;
-        color: #1a1a1a !important;
-        transform: scale(1.05);
-    }
-
-    /* Styl formularza */
-    div[data-testid="stForm"] {
-        background-color: rgba(255, 255, 255, 0.1);
-        border: 2px solid #f1c40f;
-        border-radius: 20px;
+    /* Kultowa żółta ramka Moniki jako kontener notatki */
+    .monica-frame {
+        border: 12px solid var(--friends-yellow);
+        border-radius: 50% 5% 50% 5% / 5% 50% 5% 50%; /* Nieregularny kształt ramki */
         padding: 30px;
+        background-color: rgba(255, 255, 255, 0.95);
+        color: #2c3e50;
+        font-family: 'Kalam', cursive;
+        box-shadow: 15px 15px 30px rgba(0,0,0,0.4);
+        position: relative;
+        min-height: 200px;
     }
 
-    /* Kalendarz */
-    .fc { 
-        background: #ffffff !important; 
-        color: #000000 !important; 
-        border-radius: 10px;
-        overflow: hidden;
+    .category-badge {
+        position: absolute;
+        top: -15px;
+        right: 10px;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        color: white;
+        font-family: 'Varela Round', sans-serif;
     }
+
+    /* Przyciski sterujące */
+    .stButton>button {
+        font-family: 'Permanent Marker', cursive !important;
+        border-radius: 50px !important;
+        border: 3px solid white !important;
+        font-size: 1.2rem !important;
+        transition: all 0.2s;
+        height: 3em !important;
+    }
+
+    /* Kolory przycisków */
+    div.stButton > button:first-child { background-color: var(--friends-red) !important; color: white !important; } /* Pivot */
     
-    .fc-event {
-        background-color: #6a5acd !important;
-        border: none !important;
+    /* Inputy */
+    .stTextArea textarea {
+        background-color: #fdfdfd !important;
+        border: 2px solid var(--friends-blue) !important;
+        font-family: 'Varela Round', sans-serif !important;
     }
 
-    /* Ukrycie standardowych elementów Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--monica-purple); }
+    ::-webkit-scrollbar-thumb { background: var(--friends-yellow); border-radius: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- INICJALIZACJA STANU EDYCJI ---
-if 'edit_content' not in st.session_state:
-    st.session_state['edit_content'] = ""
+# --- LOGIKA KATEGORII ---
+CATEGORIES = {
+    "Monica (Hard Deadline)": {"color": "#e74c3c", "icon": "🧹"},
+    "Joey (Logistics/Trucks)": {"color": "#e67e22", "icon": "🍕"},
+    "Ross (Technical/Specs)": {"color": "#3498db", "icon": "🦖"},
+    "Chandler (Office/Admin)": {"color": "#9b59b6", "icon": "💻"},
+    "Phoebe (Random/Other)": {"color": "#2ecc71", "icon": "🎸"}
+}
 
 # --- POŁĄCZENIE Z DANYMI ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     try:
-        return conn.read(ttl="1s")
+        data = conn.read(ttl="1s")
+        if "Category" not in data.columns:
+            data["Category"] = "Phoebe (Random/Other)"
+        return data
     except Exception:
-        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID"])
+        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID", "Category"])
 
 df = load_data()
 
-# --- NAGŁÓWEK ---
-st.markdown('<div class="friends-header">F·R·I·E·N·D·S LOG</div>', unsafe_allow_html=True)
+# --- HEADER ---
+st.markdown("""
+    <div class="friends-logo">
+        S<span class="dot-red">.</span>Q<span class="dot-yellow">.</span>M<span class="dot-blue">.</span> 
+        L<span class="dot-red">.</span>O<span class="dot-yellow">.</span>G<span class="dot-blue">.</span>S
+    </div>
+""", unsafe_allow_html=True)
 
-col_input, col_display = st.columns([1, 1.3], gap="large")
+col_left, col_right = st.columns([1, 1.2], gap="large")
 
-with col_input:
-    st.markdown("### ☕ Central Perk Daily Briefing")
+with col_left:
+    st.markdown("### 📝 The One Where You Add a Task")
     
-    # Formularz wprowadzania w stylu "The One Where..."
-    with st.form("main_form", clear_on_submit=True):
-        st.markdown("**How you doin'?** (Wpisz szczegóły transportu/slotu)")
+    with st.form("main_form"):
+        # Wybór "postaci" (kategorii)
+        cat_choice = st.selectbox("Who's responsible?", list(CATEGORIES.keys()))
         
         note_txt = st.text_area(
-            label="Note content",
-            label_visibility="collapsed",
-            value=st.session_state['edit_content'], 
-            height=150, 
-            placeholder="The One Where the Truck is Late..."
+            "What's the situation?",
+            value=st.session_state.get('edit_content', ""),
+            height=150,
+            placeholder="Type here or 'Regina Phalange' will find you..."
         )
         
-        submit_btn = st.form_submit_button("PIVOT! (ZAPISZ)")
+        # PIVOT Button
+        submit = st.form_submit_button("PIVOT! PIVOT! PIVOT!")
         
-        if submit_btn and note_txt:
+        if submit and note_txt:
             now = datetime.now()
-            new_entry = pd.DataFrame([{
+            new_row = pd.DataFrame([{
                 "Timestamp": now.strftime("%H:%M:%S"),
                 "Date": now.strftime("%Y-%m-%d"),
                 "Note": note_txt,
-                "ID": str(uuid.uuid4())
+                "ID": str(uuid.uuid4()),
+                "Category": cat_choice
             }])
             
-            # Aktualizacja danych (filtrowanie starych ID przy edycji)
-            if st.session_state['edit_content'] != "":
-                 # Jeśli edytujemy, wypadałoby usunąć stary wpis, ale dla uproszczenia logiki SQM dodajemy nowy
-                 # Można tu dodać logikę nadpisywania po ID, jeśli jest wymagana
-                 pass
-            
-            df = pd.concat([df, new_entry], ignore_index=True)
+            df = pd.concat([df, new_row], ignore_index=True)
             conn.update(data=df)
             st.cache_data.clear()
-            
             st.session_state['edit_content'] = ""
-            st.success("Smelly Cat approved this note!")
+            st.balloons()
             st.rerun()
 
     st.markdown("---")
-    st.markdown("### 🛋️ On the Orange Sofa (Ostatnie wpisy)")
-    
+    st.markdown("### 🎞️ Previous Episodes (Notes)")
+
     if not df.empty:
-        # Sortowanie: najnowsze na górze
         sorted_df = df.sort_values(by=['Date', 'Timestamp'], ascending=False)
-        
-        for i, row in sorted_df.iterrows():
-            # KARTKA W STYLU CENTRAL PERK
+        for _, row in sorted_df.iterrows():
+            cat_info = CATEGORIES.get(row['Category'], CATEGORIES["Phoebe (Random/Other)"])
+            
+            # Kartka w żółtej ramce Moniki
             st.markdown(f"""
-            <div class="central-perk-note">
-                <div class="timestamp-label">
-                    📅 {row['Date']} | 🕒 {row['Timestamp']}
+                <div class="monica-frame">
+                    <div class="category-badge" style="background-color: {cat_info['color']};">
+                        {cat_info['icon']} {row['Category']}
+                    </div>
+                    <div style="font-size: 0.8rem; color: #7f8c8d; margin-bottom: 10px;">
+                        Season {row['Date'][:4]} | Ep. {row['Timestamp']}
+                    </div>
+                    <div style="font-size: 1.3rem; line-height: 1.2; color: #2c3e50; font-weight: bold;">
+                        {row['Note']}
+                    </div>
                 </div>
-                <div style="font-size: 1.2rem; line-height: 1.4;">{row['Note']}</div>
-            </div>
             """, unsafe_allow_html=True)
             
-            # PRZYCISKI AKCJI
-            b1, b2 = st.columns(2)
-            with b1:
-                if st.button(f"He's a transponster! (Edytuj)", key=f"edit_{row['ID']}"):
+            # Przyciski pod ramką
+            c1, c2, _ = st.columns([1, 1, 2])
+            with c1:
+                if st.button("Edit", key=f"ed_{row['ID']}"):
                     st.session_state['edit_content'] = row['Note']
                     st.rerun()
-            
-            with b2:
-                if st.button(f"WE WERE ON A BREAK! (Usuń)", key=f"del_{row['ID']}"):
+            with c2:
+                if st.button("Delete", key=f"de_{row['ID']}"):
                     df = df[df['ID'] != row['ID']]
                     conn.update(data=df)
                     st.cache_data.clear()
                     st.rerun()
-    else:
-        st.info("No coffee here yet. Write something!")
+            st.markdown("<br>", unsafe_allow_html=True)
 
-with col_display:
-    st.markdown("### 📅 Monica's Organized Calendar")
+with col_right:
+    st.markdown("### 🗓️ Central Perk Master Schedule")
     
+    # Przygotowanie eventów z kolorami kategorii
     calendar_events = []
-    if not df.empty:
-        for _, row in df.iterrows():
-            if pd.notna(row['Date']):
-                calendar_events.append({
-                    "title": f"☕ {row['Note'][:30]}...",
-                    "start": str(row['Date']),
-                    "color": "#e74c3c" if "PILNE" in row['Note'].upper() else "#2e7d32"
-                })
+    for _, row in df.iterrows():
+        cat_color = CATEGORIES.get(row['Category'], {"color": "#333"})["color"]
+        calendar_events.append({
+            "title": f"{row['Category'].split(' ')[0]}: {row['Note'][:20]}",
+            "start": str(row['Date']),
+            "backgroundColor": cat_color,
+            "borderColor": "white"
+        })
 
     calendar(
         events=calendar_events,
         options={
             "initialView": "dayGridMonth",
-            "firstDay": 1,
-            "locale": "pl",
+            "headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,listWeek"},
             "height": 600,
-            "selectable": False,
-            "headerToolbar": {
-                "left": "prev,next today",
-                "center": "title",
-                "right": "dayGridMonth,dayGridWeek"
-            }
         },
-        key="friends_calendar_v1"
+        key="friends_ultra_calendar"
     )
+    
+    # Cytat na poprawę humoru przy ciężkiej logistyce
+    st.markdown("""
+        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; margin-top: 20px; text-align: center; font-style: italic;">
+            "Welcome to the real world! It sucks. You're gonna love it!" <br><b>- Monica Geller</b>
+        </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("---")
-    # Techniczny podgląd dla Moniki (ona musi mieć wszystko w tabelkach)
-    with st.expander("🛠️ Chandler's Data Spreadsheet"):
+    with st.expander("Secret Geller Cup (Raw Data)"):
         st.dataframe(df, use_container_width=True)
-
-    # Easter Egg na dole
-    st.markdown("<div style='text-align: center; opacity: 0.6; font-size: 0.8rem;'>I'll be there for you (and your logistics). SQM Team 2026</div>", unsafe_allow_html=True)

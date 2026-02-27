@@ -6,79 +6,96 @@ import uuid
 from datetime import datetime
 
 # --- KONFIGURACJA ---
-st.set_page_config(page_title="SQM Country Log", page_icon="🤠", layout="wide")
+st.set_page_config(page_title="SQM Logistics: The One with the Plan", page_icon="☕", layout="wide")
 
-# --- DESIGN: EXTREME COUNTRY (WOOD & PAPER) ---
+# --- DESIGN: FRIENDS STYLE (Central Perk & Monica's Apartment) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Rye&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Permanent+Marker&family=Short+Stack&display=swap');
 
+    /* Tło w kolorze fioletowym (ściany u Moniki) */
     .stApp {
-        background-color: #2b1d12;
-        background-image: url("https://www.transparenttextures.com/patterns/dark-wood.png");
-        color: #d7ccc8;
+        background-color: #6a5acd;
+        background-image: radial-gradient(#7b68ee 1px, transparent 1px);
+        background-size: 20px 20px;
+        color: #ffffff;
     }
 
-    .wanted-header {
-        font-family: 'Rye', cursive;
-        font-size: 3.5rem;
-        color: #d4af37;
+    /* Nagłówek w stylu logo serialu */
+    .friends-header {
+        font-family: 'Permanent Marker', cursive;
+        font-size: 4.5rem;
         text-align: center;
-        text-shadow: 3px 3px 0px #000;
-        margin-bottom: 30px;
-        border: 4px double #d4af37;
+        color: #ffffff;
+        text-shadow: 
+            4px 4px 0px #e74c3c, /* Czerwona kropka */
+            8px 8px 0px #f1c40f, /* Żółta kropka */
+            12px 12px 0px #3498db; /* Niebieska kropka */
+        margin-bottom: 40px;
+        letter-spacing: 5px;
+    }
+
+    /* Styl kartki - kawiarniane menu Central Perk */
+    .central-perk-note {
+        background-color: #2e7d32; /* Ciemnozielony jak sofa/logo */
+        border: 8px solid #3e2723; /* Drewniana rama */
+        border-radius: 15px;
         padding: 20px;
+        color: #fff176;
+        font-family: 'Short Stack', cursive;
+        box-shadow: 10px 10px 0px rgba(0,0,0,0.3);
+        margin-bottom: 25px;
     }
 
-    .note-paper {
-        background-color: #e2cfb6;
-        background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
-        color: #2b1d12;
-        padding: 25px;
-        margin: 20px 0px;
-        border-radius: 2px;
-        box-shadow: 10px 10px 20px rgba(0,0,0,0.6);
-        font-family: 'Special Elite', cursive;
-        position: relative;
-        border: 1px solid #c0a080;
+    .timestamp-label {
+        color: #ffa726;
+        font-weight: bold;
+        border-bottom: 1px dashed #ffa726;
+        margin-bottom: 10px;
+        font-size: 0.9rem;
     }
 
-    .note-paper::before {
-        content: '';
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        width: 15px;
-        height: 15px;
-        background: #444;
-        border-radius: 50%;
-        box-shadow: inset 2px 2px 5px #000;
-        transform: translateX(-50%);
-    }
-
-    .stTextArea textarea {
-        background-color: #f5f5f5 !important;
-        font-family: 'Special Elite', cursive !important;
-        font-size: 1.1rem !important;
-        color: #1a1a1a !important;
-    }
-
+    /* Przyciski jak z tablicy kredowej */
     .stButton>button {
-        background-color: #4e342e !important;
-        color: #d4af37 !important;
-        font-family: 'Rye', cursive !important;
-        border: 2px solid #d4af37 !important;
-        width: 100%;
-        height: 50px;
-        font-size: 1.2rem !important;
+        background-color: #1a1a1a !important;
+        color: white !important;
+        font-family: 'Permanent Marker', cursive !important;
+        border: 2px solid #ffffff !important;
+        border-radius: 0px !important;
+        transition: 0.3s;
+        text-transform: uppercase;
     }
 
     .stButton>button:hover {
-        background-color: #d4af37 !important;
-        color: #2b1d12 !important;
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        transform: scale(1.05);
     }
 
-    .fc { background: #fdf5e6 !important; color: #2b1d12 !important; border: 5px solid #5d4037; }
+    /* Styl formularza */
+    div[data-testid="stForm"] {
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 2px solid #f1c40f;
+        border-radius: 20px;
+        padding: 30px;
+    }
+
+    /* Kalendarz */
+    .fc { 
+        background: #ffffff !important; 
+        color: #000000 !important; 
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .fc-event {
+        background-color: #6a5acd !important;
+        border: none !important;
+    }
+
+    /* Ukrycie standardowych elementów Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,18 +115,26 @@ def load_data():
 df = load_data()
 
 # --- NAGŁÓWEK ---
-st.markdown('<div class="wanted-header">NOTES</div>', unsafe_allow_html=True)
+st.markdown('<div class="friends-header">F·R·I·E·N·D·S LOG</div>', unsafe_allow_html=True)
 
-col_input, col_display = st.columns([1, 1.2], gap="large")
+col_input, col_display = st.columns([1, 1.3], gap="large")
 
 with col_input:
-    st.subheader("🤠 Przybij nową notatkę")
+    st.markdown("### ☕ Central Perk Daily Briefing")
     
-    # Formularz wprowadzania
+    # Formularz wprowadzania w stylu "The One Where..."
     with st.form("main_form", clear_on_submit=True):
-        # Pole tekstowe bierze wartość ze stanu edycji, jeśli kliknięto 'Popraw'
-        note_txt = st.text_area("", value=st.session_state['edit_content'], height=200, placeholder="Wpisz treść...")
-        submit_btn = st.form_submit_button("PRZYBIJ DO TABLICY")
+        st.markdown("**How you doin'?** (Wpisz szczegóły transportu/slotu)")
+        
+        note_txt = st.text_area(
+            label="Note content",
+            label_visibility="collapsed",
+            value=st.session_state['edit_content'], 
+            height=150, 
+            placeholder="The One Where the Truck is Late..."
+        )
+        
+        submit_btn = st.form_submit_button("PIVOT! (ZAPISZ)")
         
         if submit_btn and note_txt:
             now = datetime.now()
@@ -120,60 +145,65 @@ with col_input:
                 "ID": str(uuid.uuid4())
             }])
             
-            # Aktualizacja danych
+            # Aktualizacja danych (filtrowanie starych ID przy edycji)
+            if st.session_state['edit_content'] != "":
+                 # Jeśli edytujemy, wypadałoby usunąć stary wpis, ale dla uproszczenia logiki SQM dodajemy nowy
+                 # Można tu dodać logikę nadpisywania po ID, jeśli jest wymagana
+                 pass
+            
             df = pd.concat([df, new_entry], ignore_index=True)
             conn.update(data=df)
             st.cache_data.clear()
             
-            # Czyszczenie stanu edycji po zapisie
             st.session_state['edit_content'] = ""
+            st.success("Smelly Cat approved this note!")
             st.rerun()
 
     st.markdown("---")
-    st.subheader("📜 Wszystkie kartki na ścianie")
+    st.markdown("### 🛋️ On the Orange Sofa (Ostatnie wpisy)")
     
     if not df.empty:
         # Sortowanie: najnowsze na górze
         sorted_df = df.sort_values(by=['Date', 'Timestamp'], ascending=False)
         
         for i, row in sorted_df.iterrows():
-            # KARTKA
+            # KARTKA W STYLU CENTRAL PERK
             st.markdown(f"""
-            <div class="note-paper">
-                <div style="font-size: 0.8rem; border-bottom: 1px solid #999; margin-bottom: 8px; color: #555;">
-                    📅 {row['Date']} | ⏰ {row['Timestamp']}
+            <div class="central-perk-note">
+                <div class="timestamp-label">
+                    📅 {row['Date']} | 🕒 {row['Timestamp']}
                 </div>
-                <div style="font-size: 1.1rem; line-height: 1.3;">{row['Note']}</div>
+                <div style="font-size: 1.2rem; line-height: 1.4;">{row['Note']}</div>
             </div>
             """, unsafe_allow_html=True)
             
             # PRZYCISKI AKCJI
             b1, b2 = st.columns(2)
             with b1:
-                if st.button(f"✏️ Popraw", key=f"edit_{row['ID']}"):
+                if st.button(f"He's a transponster! (Edytuj)", key=f"edit_{row['ID']}"):
                     st.session_state['edit_content'] = row['Note']
-                    st.rerun() # Przeładowuje, by tekst wskoczył do formularza na górze
+                    st.rerun()
             
             with b2:
-                if st.button(f"🔥 Spal", key=f"del_{row['ID']}"):
+                if st.button(f"WE WERE ON A BREAK! (Usuń)", key=f"del_{row['ID']}"):
                     df = df[df['ID'] != row['ID']]
                     conn.update(data=df)
                     st.cache_data.clear()
                     st.rerun()
     else:
-        st.info("Tablica jest pusta.")
+        st.info("No coffee here yet. Write something!")
 
 with col_display:
-    st.subheader("📅 Rejestr Dni")
+    st.markdown("### 📅 Monica's Organized Calendar")
     
     calendar_events = []
     if not df.empty:
         for _, row in df.iterrows():
             if pd.notna(row['Date']):
                 calendar_events.append({
-                    "title": f"🕒 {row['Timestamp']} - {row['Note'][:20]}...",
+                    "title": f"☕ {row['Note'][:30]}...",
                     "start": str(row['Date']),
-                    "color": "#4e342e"
+                    "color": "#e74c3c" if "PILNE" in row['Note'].upper() else "#2e7d32"
                 })
 
     calendar(
@@ -182,12 +212,21 @@ with col_display:
             "initialView": "dayGridMonth",
             "firstDay": 1,
             "locale": "pl",
-            "height": 650,
-            "selectable": False
+            "height": 600,
+            "selectable": False,
+            "headerToolbar": {
+                "left": "prev,next today",
+                "center": "title",
+                "right": "dayGridMonth,dayGridWeek"
+            }
         },
-        key="country_calendar_v5"
+        key="friends_calendar_v1"
     )
 
     st.markdown("---")
-    with st.expander("🛠️ Podgląd techniczny (Arkusz)"):
+    # Techniczny podgląd dla Moniki (ona musi mieć wszystko w tabelkach)
+    with st.expander("🛠️ Chandler's Data Spreadsheet"):
         st.dataframe(df, use_container_width=True)
+
+    # Easter Egg na dole
+    st.markdown("<div style='text-align: center; opacity: 0.6; font-size: 0.8rem;'>I'll be there for you (and your logistics). SQM Team 2026</div>", unsafe_allow_html=True)

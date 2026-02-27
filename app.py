@@ -6,25 +6,29 @@ import uuid
 import random
 from datetime import datetime
 
-# --- KONFIGURACJA ---
-st.set_page_config(page_title="SQM LOGISTICS: THE FINAL SEASON", page_icon="🛋️", layout="wide")
+# --- KONFIGURACJA STRONY ---
+st.set_page_config(
+    page_title="SQM LOGISTICS: THE ONE WITH THE TRUCKS", 
+    page_icon="☕", 
+    layout="wide"
+)
 
-# --- DESIGN: THE ULTIMATE FRIENDS OVERLOAD (NEON EDITION) ---
+# --- SYSTEM DESIGNU (FRIENDS ULTRA) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Varela+Round&family=Kalam:wght@700&family=Gloria+Hallelujah&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Varela+Round&family=Gloria+Hallelujah&display=swap');
 
-    /* Tło - Kultowy fiolet Moniki z teksturą cegły */
+    /* Tło - mieszkanie Moniki */
     .stApp {
         background-color: #6a5acd;
         background-image: url("https://www.transparenttextures.com/patterns/brick-wall.png");
         color: white;
     }
 
-    /* Logo z animacją pulsowania i neonem */
+    /* Logo Serialu */
     .friends-logo {
         font-family: 'Permanent Marker', cursive;
-        font-size: 6rem;
+        font-size: 5.5rem;
         text-align: center;
         color: white;
         text-shadow: 
@@ -32,220 +36,192 @@ st.markdown("""
             4px 4px #e74c3c, 
             8px 8px #f1c40f, 
             12px 12px #3498db;
-        animation: pulse 2s infinite;
-        margin-bottom: 50px;
-    }
-
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.02); }
-        100% { transform: scale(1); }
-    }
-
-    /* Kontener notatki jako "Fioletowe Drzwi" */
-    .door-note {
-        background-color: #7b68ee;
-        border: 10px solid #f1c40f; /* Żółta ramka */
-        border-radius: 10px;
-        padding: 25px;
         margin-bottom: 30px;
-        box-shadow: 20px 20px 0px rgba(0,0,0,0.5);
-        position: relative;
-        transition: transform 0.3s;
     }
-    
-    .door-note:hover {
-        transform: rotate(-1deg) scale(1.02);
+
+    /* Notatka jako fioletowe drzwi */
+    .door-card {
+        background-color: #7b68ee;
+        border: 10px solid #f1c40f; /* Żółta ramka wizjera */
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 25px;
+        box-shadow: 15px 15px 0px rgba(0,0,0,0.4);
+        position: relative;
     }
 
     .peephole {
         position: absolute;
-        top: 20px;
+        top: 15px;
         left: 50%;
         transform: translateX(-50%);
-        width: 30px;
-        height: 30px;
-        background: #444;
-        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        background: #333;
         border: 4px solid #f1c40f;
+        border-radius: 50%;
     }
 
-    .note-text {
+    .note-content {
         font-family: 'Gloria Hallelujah', cursive;
-        font-size: 1.4rem;
+        font-size: 1.5rem;
         color: #fff;
-        margin-top: 25px;
+        margin-top: 20px;
         line-height: 1.4;
     }
 
-    /* PIVOT BUTTON - Shaking effect */
-    .pivot-button button {
+    /* Wielki przycisk PIVOT */
+    .pivot-btn button {
         background: linear-gradient(45deg, #e74c3c, #f1c40f, #3498db) !important;
         font-family: 'Permanent Marker', cursive !important;
-        font-size: 2.5rem !important;
-        height: 100px !important;
-        border: 5px solid white !important;
+        font-size: 2.2rem !important;
+        height: 80px !important;
+        width: 100% !important;
+        border: 4px solid white !important;
         color: white !important;
-        text-shadow: 2px 2px #000;
-        animation: shake 0.5s infinite;
-        animation-play-state: paused;
-        width: 100%;
+        transition: 0.3s;
+    }
+    
+    .pivot-btn button:hover {
+        transform: scale(1.02) rotate(-1deg);
     }
 
-    .pivot-button button:hover {
-        animation-play-state: running;
-    }
-
-    @keyframes shake {
-        0% { transform: translate(1px, 1px) rotate(0deg); }
-        10% { transform: translate(-1px, -2px) rotate(-1deg); }
-        30% { transform: translate(3px, 2px) rotate(0deg); }
-        50% { transform: translate(-1px, 2px) rotate(1deg); }
-        100% { transform: translate(1px, -2px) rotate(-1deg); }
-    }
-
-    /* Ukrycie nudnych elementów */
-    div[data-testid="stDecoration"] { display: none; }
+    /* Kalendarz */
+    .fc { background: white !important; color: black !important; border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- FUNKCJE I DANE ---
+# --- INICJALIZACJA STANU SESJI ---
+if 'delete_id' not in st.session_state:
+    st.session_state.delete_id = ""
+if 'edit_content' not in st.session_state:
+    st.session_state.edit_content = ""
+
+# --- POŁĄCZENIE Z DANYMI ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
     try:
-        data = conn.read(ttl="1s")
-        # WYMUSZENIE KOLUMN - To naprawia Twój błąd
-        expected_cols = ["Timestamp", "Date", "Note", "ID", "Category"]
-        for col in expected_cols:
+        # ttl=0 zapewnia brak opóźnień w odświeżaniu przy usuwaniu
+        data = conn.read(ttl=0)
+        # Naprawa struktury tabeli (The One with the Missing Columns)
+        required = ["Timestamp", "Date", "Note", "ID", "Category"]
+        for col in required:
             if col not in data.columns:
-                data[col] = "None"
+                data[col] = ""
         return data
     except Exception:
         return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID", "Category"])
 
 df = load_data()
 
-# Funkcja pomocnicza do bezpiecznego pobierania tekstu
-def get_safe_val(val, length=None):
-    s = str(val) if val is not None else "???"
-    return s[:length] if length else s
+# --- LOGIKA USUWANIA (Triggerowana przed renderowaniem UI) ---
+if st.session_state.delete_id != "":
+    target = st.session_state.delete_id
+    # Filtrujemy DataFrame
+    df = df[df['ID'].astype(str) != str(target)]
+    # Wysyłamy do Google Sheets
+    conn.update(data=df)
+    # Czyścimy cache i stan
+    st.cache_data.clear()
+    st.session_state.delete_id = ""
+    st.toast("WE WERE ON A BREAK! (Notatka usunięta)")
+    st.rerun()
 
-FRIENDS_QUOTES = [
-    "How you doin'?",
-    "WE WERE ON A BREAK!",
-    "Pivot! Pivot! PIVOT!",
-    "I'm not great at the advice. Can I interest you in a sarcastic comment?",
-    "Could this BE any more organized?",
-    "Joey doesn't share food!",
-    "Smelly cat, smelly cat, what are they feeding you?",
-    "Welcome to the real world. It sucks. You’re gonna love it!"
-]
+# --- NAGŁÓWEK ---
+st.markdown('<div class="friends-logo">F·R·I·E·N·D·S LOGS</div>', unsafe_allow_html=True)
 
-CATEGORIES = {
-    "MONICA: Clean & Fast": "🔴",
-    "CHANDLER: Sarcastic Admin": "🔵",
-    "ROSS: The Logistics Docent": "🟡",
-    "JOEY: Truck Driver Vibes": "🟠",
-    "PHOEBE: Smelly Logistics": "🟢"
-}
+col_input, col_view = st.columns([1, 1.4], gap="large")
 
-# --- UI ---
-st.markdown('<div class="friends-logo">F·R·I·E·N·D·S<br><small style="font-size: 2rem;">SQM LOGISTICS EDITION</small></div>', unsafe_allow_html=True)
-
-if 'quote' not in st.session_state:
-    st.session_state.quote = random.choice(FRIENDS_QUOTES)
-
-st.info(f"💡 {st.session_state.quote}")
-
-col_form, col_content = st.columns([1, 1.5], gap="large")
-
-with col_form:
-    st.markdown("### 🎬 Start New Episode")
-    with st.form("ultimate_form"):
-        char_cat = st.radio("Who's handling this slot?", list(CATEGORIES.keys()), horizontal=True)
+with col_input:
+    st.markdown("### 🎬 New Episode Details")
+    
+    with st.form("main_form", clear_on_submit=True):
+        category = st.selectbox("Category (The Energy of...)", [
+            "MONICA (Critical/Urgent)", 
+            "CHANDLER (Sarcastic/Office)", 
+            "ROSS (Specs/Technical)", 
+            "JOEY (Trucks/Drivers)", 
+            "PHOEBE (Random Stuff)"
+        ])
         
-        note_content = st.text_area("What's the 'The One With...' title?", 
-                                    value=st.session_state.get('edit_content', ""),
-                                    height=150, 
-                                    placeholder="The One Where the 24t Truck Arrives Early...")
+        note_text = st.text_area("The One With...", value=st.session_state.edit_content, height=150)
         
-        st.markdown('<div class="pivot-button">', unsafe_allow_html=True)
-        pivot = st.form_submit_button("PIVOT!")
+        st.markdown('<div class="pivot-btn">', unsafe_allow_html=True)
+        submitted = st.form_submit_button("PIVOT!")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        if pivot and note_content:
-            new_data = pd.DataFrame([{
+        if submitted and note_text:
+            new_entry = pd.DataFrame([{
                 "Timestamp": datetime.now().strftime("%H:%M:%S"),
                 "Date": datetime.now().strftime("%Y-%m-%d"),
-                "Note": note_content,
+                "Note": note_text,
                 "ID": str(uuid.uuid4()),
-                "Category": char_cat
+                "Category": category
             }])
-            df = pd.concat([df, new_data], ignore_index=True)
+            df = pd.concat([df, new_entry], ignore_index=True)
             conn.update(data=df)
             st.cache_data.clear()
             st.session_state.edit_content = ""
-            st.session_state.quote = random.choice(FRIENDS_QUOTES)
             st.rerun()
 
     st.markdown("---")
-    st.markdown("### ☕ Central Perk Slot Tracker")
+    st.markdown("### 📅 Central Perk Master Plan")
+    
     cal_events = []
+    # Bezpieczne parsowanie danych do kalendarza
     for _, row in df.iterrows():
-        # Bezpieczne pobieranie wartości do kalendarza
-        cat_name = get_safe_val(row.get('Category', '???'), 3)
-        note_preview = get_safe_val(row.get('Note', ''), 15)
-        
-        cal_events.append({
-            "title": f"{cat_name}: {note_preview}",
-            "start": str(row['Date']),
-            "color": "#f1c40f" if "ROSS" in str(row['Category']).upper() else "#e74c3c"
-        })
-    
-    calendar(events=cal_events, options={"initialView": "dayGridMonth"}, key="ultra_cal_v2")
+        n = str(row.get('Note', ''))
+        d = str(row.get('Date', ''))
+        if n and d:
+            cal_events.append({
+                "title": f"☕ {n[:20]}...",
+                "start": d,
+                "color": "#e74c3c" if "MONICA" in str(row.get('Category', '')).upper() else "#3498db"
+            })
 
-with col_content:
-    st.markdown("### 📺 Season Highlights (Your Logs)")
+    calendar(events=cal_events, options={"initialView": "dayGridMonth"}, key="friends_calendar")
+
+with col_view:
+    st.markdown("### 📺 Previously on SQM Logistics...")
     
-    if df.empty or (len(df) == 1 and df.iloc[0]['Note'] == ""):
-        st.warning("No episodes recorded yet. Is the show cancelled?")
+    # Filtrujemy tylko wiersze, które faktycznie coś mają
+    valid_notes = df[df['Note'].astype(str).str.strip() != ""]
+    
+    if valid_notes.empty:
+        st.info("No episodes recorded. Central Perk is empty.")
     else:
-        # Sortowanie od najnowszych
-        sorted_df = df.sort_values(by=['Date', 'Timestamp'], ascending=False)
-        for _, row in sorted_df.iterrows():
-            if not row['Note'] or row['Note'] == "None": continue
-            
-            with st.container():
-                st.markdown(f"""
-                <div class="door-note">
-                    <div class="peephole"></div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 5px;">
-                        <span style="font-family: 'Varela Round'; font-weight: bold; color: #f1c40f;">
-                            {CATEGORIES.get(row['Category'], '⚪')} {row['Category']}
-                        </span>
-                        <span style="font-size: 0.8rem; opacity: 0.8;">{row['Date']} @ {row['Timestamp']}</span>
-                    </div>
-                    <div class="note-text">
-                        "{row['Note']}"
-                    </div>
+        # Najnowsze na górze
+        sorted_notes = valid_notes.sort_values(by=['Date', 'Timestamp'], ascending=False)
+        
+        for idx, row in sorted_notes.iterrows():
+            # Karta notatki
+            st.markdown(f"""
+            <div class="door-card">
+                <div class="peephole"></div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">
+                    <span style="color: #f1c40f; font-weight: bold; font-family: 'Varela Round';">{row['Category']}</span>
+                    <span style="opacity: 0.7; font-size: 0.8rem;">{row['Date']} | {row['Timestamp']}</span>
                 </div>
-                """, unsafe_allow_html=True)
-                
-                c1, c2, c3 = st.columns([1, 1, 1])
-                with c1:
-                    if st.button("Rewind (Edytuj)", key=f"ed_{row['ID']}"):
-                        st.session_state.edit_content = row['Note']
-                        st.rerun()
-                with c2:
-                    if st.button("Cancel Show (Usuń)", key=f"del_{row['ID']}"):
-                        df = df[df['ID'] != row['ID']]
-                        conn.update(data=df)
-                        st.cache_data.clear()
-                        st.rerun()
-                with c3:
-                    if st.button("Unagi! (Ważne)", key=f"un_{row['ID']}"):
-                        st.toast("Unagi! Total awareness of this slot.")
+                <div class="note-content">"{row['Note']}"</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Przyciski akcji
+            btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 2])
+            with btn_col1:
+                if st.button("Rewind (Edytuj)", key=f"edit_{row['ID']}"):
+                    st.session_state.edit_content = row['Note']
+                    st.rerun()
+            with btn_col2:
+                # System usuwania przez stan sesji
+                if st.button("Cancel (Usuń)", key=f"del_{row['ID']}"):
+                    st.session_state.delete_id = row['ID']
+                    st.rerun()
+            with btn_col3:
+                if st.button("Unagi!", key=f"unagi_{row['ID']}"):
+                    st.toast("Total Awareness achieved.")
 
+# --- STOPKA ---
 st.markdown("---")
-st.markdown("<p style='text-align: center; opacity: 0.5;'>The One with SQM Multimedia Solutions & Logistics - 2026</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; opacity: 0.5;'>SQM Multimedia Solutions - Logistics Master System v4.0 (Friends Edition)</p>", unsafe_allow_html=True)

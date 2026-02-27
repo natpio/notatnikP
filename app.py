@@ -9,7 +9,7 @@ from datetime import datetime
 # --- KONFIGURACJA ---
 st.set_page_config(page_title="SQM LOGISTICS: THE FINAL SEASON", page_icon="🛋️", layout="wide")
 
-# --- DESIGN: THE ULTIMATE FRIENDS OVERLOAD ---
+# --- DESIGN: THE ULTIMATE FRIENDS OVERLOAD (NEON EDITION) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Varela+Round&family=Kalam:wght@700&family=Gloria+Hallelujah&display=swap');
@@ -21,13 +21,17 @@ st.markdown("""
         color: white;
     }
 
-    /* Logo z animacją pulsowania */
+    /* Logo z animacją pulsowania i neonem */
     .friends-logo {
         font-family: 'Permanent Marker', cursive;
         font-size: 6rem;
         text-align: center;
         color: white;
-        text-shadow: 4px 4px #e74c3c, 8px 8px #f1c40f, 12px 12px #3498db;
+        text-shadow: 
+            0 0 10px #fff,
+            4px 4px #e74c3c, 
+            8px 8px #f1c40f, 
+            12px 12px #3498db;
         animation: pulse 2s infinite;
         margin-bottom: 50px;
     }
@@ -54,7 +58,6 @@ st.markdown("""
         transform: rotate(-1deg) scale(1.02);
     }
 
-    /* "Wizjer" w drzwiach */
     .peephole {
         position: absolute;
         top: 20px;
@@ -67,12 +70,11 @@ st.markdown("""
         border: 4px solid #f1c40f;
     }
 
-    /* Styl tekstu wewnątrz notatki */
     .note-text {
         font-family: 'Gloria Hallelujah', cursive;
         font-size: 1.4rem;
         color: #fff;
-        margin-top: 20px;
+        margin-top: 25px;
         line-height: 1.4;
     }
 
@@ -87,6 +89,7 @@ st.markdown("""
         text-shadow: 2px 2px #000;
         animation: shake 0.5s infinite;
         animation-play-state: paused;
+        width: 100%;
     }
 
     .pivot-button button:hover {
@@ -112,13 +115,21 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def load_data():
     try:
         data = conn.read(ttl="1s")
-        for col in ["Category", "ID", "Note", "Date", "Timestamp"]:
-            if col not in data.columns: data[col] = ""
+        # WYMUSZENIE KOLUMN - To naprawia Twój błąd
+        expected_cols = ["Timestamp", "Date", "Note", "ID", "Category"]
+        for col in expected_cols:
+            if col not in data.columns:
+                data[col] = "None"
         return data
     except Exception:
         return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID", "Category"])
 
 df = load_data()
+
+# Funkcja pomocnicza do bezpiecznego pobierania tekstu
+def get_safe_val(val, length=None):
+    s = str(val) if val is not None else "???"
+    return s[:length] if length else s
 
 FRIENDS_QUOTES = [
     "How you doin'?",
@@ -142,7 +153,6 @@ CATEGORIES = {
 # --- UI ---
 st.markdown('<div class="friends-logo">F·R·I·E·N·D·S<br><small style="font-size: 2rem;">SQM LOGISTICS EDITION</small></div>', unsafe_allow_html=True)
 
-# Losowy cytat na dzień dobry
 if 'quote' not in st.session_state:
     st.session_state.quote = random.choice(FRIENDS_QUOTES)
 
@@ -157,7 +167,7 @@ with col_form:
         
         note_content = st.text_area("What's the 'The One With...' title?", 
                                     value=st.session_state.get('edit_content', ""),
-                                    height=200, 
+                                    height=150, 
                                     placeholder="The One Where the 24t Truck Arrives Early...")
         
         st.markdown('<div class="pivot-button">', unsafe_allow_html=True)
@@ -179,33 +189,41 @@ with col_form:
             st.session_state.quote = random.choice(FRIENDS_QUOTES)
             st.rerun()
 
-    # Kalendarz Central Perk
     st.markdown("---")
     st.markdown("### ☕ Central Perk Slot Tracker")
     cal_events = []
     for _, row in df.iterrows():
+        # Bezpieczne pobieranie wartości do kalendarza
+        cat_name = get_safe_val(row.get('Category', '???'), 3)
+        note_preview = get_safe_val(row.get('Note', ''), 15)
+        
         cal_events.append({
-            "title": f"{row['Category'][:3]}: {row['Note'][:15]}",
+            "title": f"{cat_name}: {note_preview}",
             "start": str(row['Date']),
-            "color": "#f1c40f" if "ROSS" in row['Category'].upper() else "#e74c3c"
+            "color": "#f1c40f" if "ROSS" in str(row['Category']).upper() else "#e74c3c"
         })
     
-    calendar(events=cal_events, options={"initialView": "dayGridMonth"}, key="ultra_cal")
+    calendar(events=cal_events, options={"initialView": "dayGridMonth"}, key="ultra_cal_v2")
 
 with col_content:
     st.markdown("### 📺 Season Highlights (Your Logs)")
     
-    if df.empty:
+    if df.empty or (len(df) == 1 and df.iloc[0]['Note'] == ""):
         st.warning("No episodes recorded yet. Is the show cancelled?")
     else:
         # Sortowanie od najnowszych
-        for _, row in df.sort_values(by=['Date', 'Timestamp'], ascending=False).iterrows():
+        sorted_df = df.sort_values(by=['Date', 'Timestamp'], ascending=False)
+        for _, row in sorted_df.iterrows():
+            if not row['Note'] or row['Note'] == "None": continue
+            
             with st.container():
                 st.markdown(f"""
                 <div class="door-note">
                     <div class="peephole"></div>
                     <div style="display: flex; justify-content: space-between; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 5px;">
-                        <span style="font-family: 'Varela Round'; font-weight: bold; color: #f1c40f;">{CATEGORIES.get(row['Category'], '⚪')} {row['Category']}</span>
+                        <span style="font-family: 'Varela Round'; font-weight: bold; color: #f1c40f;">
+                            {CATEGORIES.get(row['Category'], '⚪')} {row['Category']}
+                        </span>
                         <span style="font-size: 0.8rem; opacity: 0.8;">{row['Date']} @ {row['Timestamp']}</span>
                     </div>
                     <div class="note-text">
@@ -214,7 +232,6 @@ with col_content:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Akcje w stylu Przyjaciół
                 c1, c2, c3 = st.columns([1, 1, 1])
                 with c1:
                     if st.button("Rewind (Edytuj)", key=f"ed_{row['ID']}"):
@@ -228,7 +245,7 @@ with col_content:
                         st.rerun()
                 with c3:
                     if st.button("Unagi! (Ważne)", key=f"un_{row['ID']}"):
-                        st.toast(f"Total awareness! Slot {row['Timestamp']} is under control.")
+                        st.toast("Unagi! Total awareness of this slot.")
 
 st.markdown("---")
 st.markdown("<p style='text-align: center; opacity: 0.5;'>The One with SQM Multimedia Solutions & Logistics - 2026</p>", unsafe_allow_html=True)

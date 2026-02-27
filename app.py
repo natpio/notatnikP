@@ -265,4 +265,4 @@ with col_tools:
     st.markdown("### 📅 Scheduling Board")
     calendar(events=[{"title": f"☕ {str(r['Note'])[:15]}...", "start": str(r['Date']), "color": "#2e7d32" if r['Status'] != "UNAGI" else "#f1c40f"} for _, r in df.iterrows() if r['Note']], options={"initialView": "dayGridMonth", "firstDay": 1}, key="cal_v9")
 
-st.markdown("<p style='text-align: center; opacity: 0.6; margin-top: 50px;'>Logistic Perk v8.1 | SQM 2026</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; opacity: 0.6; margin-top: 50px;'>Logistic Perk v8.1 | PIOTR DUKIEL 2026</p>", unsafe_allow_html=True)

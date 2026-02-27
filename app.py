@@ -7,8 +7,8 @@ from datetime import datetime
 
 # --- KONFIGURACJA STRONY ---
 st.set_page_config(
-    page_title="SQM LOGISTICS: THE ORANGE SOFA EDITION", 
-    page_icon="🛋️", 
+    page_title="SQM LOGISTICS: THE ORANGE SOFA EDITION",
+    page_icon="🛋️",
     layout="wide"
 )
 
@@ -20,7 +20,7 @@ st.markdown("""
     /* Tło mieszkania Moniki i cegły Central Perk */
     .stApp {
         background-color: #6a5acd;
-        background-image: 
+        background-image:
             linear-gradient(rgba(106, 90, 205, 0.85), rgba(106, 90, 205, 0.85)),
             url("https://www.transparenttextures.com/patterns/brick-wall.png");
         color: white;
@@ -85,17 +85,45 @@ st.markdown("""
         line-height: 1.3;
     }
 
-    /* Wielki przycisk PIVOT */
+    /* PRZYCISKI W STYLU ŻÓŁTEJ RAMKI MONIKI */
+    .stButton > button {
+        background-color: #fff !important; /* Białe tło wewnątrz ramki */
+        color: #333 !important; /* Ciemny tekst */
+        font-family: 'Varela Round', sans-serif !important;
+        font-weight: bold !important;
+        font-size: 1.1rem !important;
+        border: 4px solid #f1c40f !important; /* Żółta rama */
+        border-radius: 10px !important; /* Lekko zaokrąglone rogi */
+        box-shadow: 4px 4px 0px rgba(0,0,0,0.2) !important; /* Delikatny cień */
+        transition: all 0.2s ease !important;
+        height: 50px !important;
+        width: 100% !important;
+    }
+
+    .stButton > button:hover {
+        transform: translate(-2px, -2px) !important; /* Efekt naciśnięcia */
+        box-shadow: 6px 6px 0px rgba(0,0,0,0.3) !important; /* Mocniejszy cień przy hover */
+        border-color: #f1c40f !important; /* Zachowanie koloru ramki */
+        background-color: #f1c40f !important; /* Wypełnienie ramki żółcią na hover */
+        color: white !important; /* Biały tekst na hover */
+    }
+
+    /* Specjalny styl dla wielkiego przycisku PIVOT */
     .pivot-btn button {
         background: linear-gradient(45deg, #e74c3c, #f1c40f, #3498db) !important;
         font-family: 'Permanent Marker', cursive !important;
         font-size: 2.2rem !important;
         height: 90px !important;
-        width: 100% !important;
         border: 4px solid white !important;
         color: white !important;
         text-shadow: 2px 2px #000;
         margin-top: 10px;
+    }
+
+    .pivot-btn button:hover {
+        transform: scale(1.02) !important;
+        background: linear-gradient(45deg, #3498db, #f1c40f, #e74c3c) !important; /* Odwrócony gradient */
+        color: white !important;
     }
 
     /* Inputy w stylu Central Perk */
@@ -154,15 +182,13 @@ if st.session_state.unagi_target:
 # Header Neonowy
 st.markdown('<div class="neon-header">Central Perk</div>', unsafe_allow_html=True)
 
-# Słynna Kanapa
+# Słynna Kanapa i Separator
 st.markdown("""
 <div class="sofa-box">
     <img src="https://images.ctfassets.net/4cd45et68cgf/4p9vF4p8y4mY6YQ6mY2w6e/6b8e8b5e5e6e8e8e8e8e8e8e8e8e8e8e/Friends_Sofa.png?w=400" class="sofa-img">
     <p style="font-family: 'Varela Round'; letter-spacing: 10px; color: #f1c40f; font-weight: bold; font-size: 1.2rem; margin-top: 10px;">S·Q·M L·O·G·I·S·T·I·C·S</p>
 </div>
 """, unsafe_allow_html=True)
-
-
 
 col_left, col_right = st.columns([1, 1.4], gap="large")
 
@@ -171,10 +197,10 @@ with col_left:
     with st.form("perk_form", clear_on_submit=True):
         # Wybór postaci
         char_cat = st.selectbox("Who's energy is this?", [
-            "MONICA (Urgent/Cleanup)", 
-            "ROSS (Specs/Technical)", 
-            "CHANDLER (Office/Routine)", 
-            "JOEY (Trucks/Logistics)", 
+            "MONICA (Urgent/Cleanup)",
+            "ROSS (Specs/Technical)",
+            "CHANDLER (Office/Routine)",
+            "JOEY (Trucks/Logistics)",
             "PHOEBE (Random/Smelly Cat)"
         ])
         
@@ -207,7 +233,7 @@ with col_left:
     for _, row in df.iterrows():
         if row['Note'] and row['Date']:
             cal_events.append({
-                "title": f"☕ {str(row['Note'])[:15]}",
+                "title": f"☕ {str(row['Note'])[:15]}...",
                 "start": str(row['Date']),
                 "color": "#2e7d32" if row['Status'] != "UNAGI" else "#f1c40f"
             })
@@ -249,15 +275,18 @@ with col_right:
             # Przyciski sterujące
             b1, b2, b3 = st.columns(3)
             with b1:
-                if st.button("Rewind (Edytuj)", key=f"ed_{row['ID']}"):
+                # Przycisk "Rewind" ze specjalną ikonką (lub tekstem)
+                if st.button("⏪ Rewind", key=f"ed_{row['ID']}"):
                     st.session_state.edit_val = row['Note']
                     st.rerun()
             with b2:
-                if st.button("Cancel (Usuń)", key=f"de_{row['ID']}"):
+                # Przycisk "Cancel Show" z ikonką (lub tekstem)
+                if st.button("❌ Cancel", key=f"de_{row['ID']}"):
                     st.session_state.del_target = row['ID']
                     st.rerun()
-            with b3:
+            with c3:
                 # Przycisk UNAGI - Zmienia status notatki
+                # Użyłem ikonki wskazującej ręki jak na załączniku
                 if st.button("👉 UNAGI!", key=f"un_{row['ID']}"):
                     st.session_state.unagi_target = row['ID']
                     st.rerun()
@@ -266,7 +295,7 @@ with col_right:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; opacity: 0.6; font-family: 'Varela Round'; font-size: 0.8rem;">
-    S·Q·M Multimedia Solutions Logistics Center | Central Perk Studio v5.0 | 2026 <br>
+    S·Q·M Multimedia Solutions Logistics Center | Central Perk Studio v5.1 | 2026 <br>
     <i>"I'll be there for you (as long as the slot is confirmed)"</i>
 </div>
 """, unsafe_allow_html=True)

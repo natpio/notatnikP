@@ -72,12 +72,14 @@ st.markdown("""
         border-bottom: 1px dashed #444;
         margin-bottom: 12px;
         padding-bottom: 5px;
+        font-size: 1.1rem;
     }
 
     .note-body {
         font-family: 'Kalam', cursive;
-        font-size: 1.6rem;
+        font-size: 1.8rem;
         line-height: 1.3;
+        padding: 10px 0;
     }
 
     /* PRZYCISKI: ŻÓŁTA RAMKA MONIKI */
@@ -86,7 +88,7 @@ st.markdown("""
         color: #333 !important;
         font-family: 'Varela Round', sans-serif !important;
         font-weight: bold !important;
-        border: 5px solid #f1c40f !important; /* Wyraźna żółta rama */
+        border: 5px solid #f1c40f !important;
         border-radius: 15px !important;
         box-shadow: 4px 4px 0px rgba(0,0,0,0.3) !important;
         transition: all 0.2s ease !important;
@@ -111,6 +113,15 @@ st.markdown("""
         border: 5px solid white !important;
         text-shadow: 2px 2px 4px #000;
     }
+    
+    /* Input Style */
+    .stTextArea textarea {
+        background-color: #fdf5e6 !important;
+        border: 3px solid #f1c40f !important;
+        font-family: 'Gloria Hallelujah', cursive !important;
+        color: #333 !important;
+        font-size: 1.2rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,12 +131,12 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def fetch_data():
     try:
         data = conn.read(ttl=0)
-        required = ["Timestamp", "Date", "Note", "ID", "Category", "Status"]
+        required = ["Timestamp", "Date", "Note", "ID", "Status"]
         for col in required:
             if col not in data.columns: data[col] = ""
         return data.fillna("")
     except:
-        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID", "Category", "Status"])
+        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID", "Status"])
 
 if 'edit_val' not in st.session_state: st.session_state.edit_val = ""
 if 'del_target' not in st.session_state: st.session_state.del_target = ""
@@ -152,7 +163,7 @@ if st.session_state.unagi_target:
 
 # --- INTERFEJS ---
 
-# NOWE LOGO W STYLU FRIENDS
+# LOGO W STYLU FRIENDS
 st.markdown("""
     <div class="friends-logo">
         L O G I S T I C<span class="dot-red">.</span>P E R K
@@ -167,13 +178,46 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-col_l, col_r = st.columns([1, 1.4], gap="large")
+# ZAMIANA STRON: LEWA (TIMELINE), PRAWA (FORMULARZ I KALENDARZ)
+col_timeline, col_tools = st.columns([1.4, 1], gap="large")
 
-with col_l:
-    st.markdown("### 🖋️ New Slot Details")
+with col_timeline:
+    st.markdown("### 🎬 Logistics Timeline")
+    logs = df[df['Note'].astype(str).str.strip() != ""].sort_values(by=['Date', 'Timestamp'], ascending=False)
+    
+    if logs.empty:
+        st.info("No logs found. Add your first slot on the right!")
+    else:
+        for _, row in logs.iterrows():
+            is_unagi = str(row.get('Status')) == "UNAGI"
+            card_style = "unagi-gold-frame" if is_unagi else ""
+            
+            st.markdown(f"""
+                <div class="chalkboard-card {card_style}">
+                    <div class="note-header">☕ {row['Date']} @ {row['Timestamp']}</div>
+                    <div class="note-body">"{row['Note']}"</div>
+                    { '<div style="color: #f1c40f; font-weight: bold; margin-top: 10px; font-family: Permanent Marker;">✨ STATUS: UNAGI ✨</div>' if is_unagi else '' }
+                </div>
+            """, unsafe_allow_html=True)
+            
+            b1, b2, b3 = st.columns(3)
+            with b1:
+                if st.button("⏪ Rewind", key=f"ed_{row['ID']}"):
+                    st.session_state.edit_val = row['Note']
+                    st.rerun()
+            with b2:
+                if st.button("❌ Cancel", key=f"de_{row['ID']}"):
+                    st.session_state.del_target = row['ID']
+                    st.rerun()
+            with b3:
+                if st.button("👉 UNAGI!", key=f"un_{row['ID']}"):
+                    st.session_state.unagi_target = row['ID']
+                    st.rerun()
+
+with col_tools:
+    st.markdown("### 🖋️ The One with the New Slot")
     with st.form("entry_form", clear_on_submit=True):
-        cat = st.selectbox("Assign Energy:", ["MONICA (Urgent)", "ROSS (Technical)", "CHANDLER (Office)", "JOEY (Trucks)", "PHOEBE (Random)"])
-        note = st.text_area("The One With...", value=st.session_state.edit_val, height=150)
+        note = st.text_area("Slot Details:", value=st.session_state.edit_val, height=180, placeholder="What's happening in Düsseldorf?")
         
         st.markdown('<div class="pivot-btn">', unsafe_allow_html=True)
         if st.form_submit_button("PIVOT!"):
@@ -183,7 +227,6 @@ with col_l:
                     "Date": datetime.now().strftime("%Y-%m-%d"),
                     "Note": note,
                     "ID": str(uuid.uuid4()),
-                    "Category": cat,
                     "Status": "Active"
                 }])
                 df = pd.concat([df, new_row], ignore_index=True)
@@ -193,37 +236,18 @@ with col_l:
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    calendar(events=[{"title": f"☕ {str(r['Note'])[:15]}", "start": str(r['Date']), "color": "#2e7d32"} for _, r in df.iterrows() if r['Note']], options={"initialView": "dayGridMonth"}, key="cal_v6")
-
-with col_r:
-    st.markdown("### 🎬 Logistics Timeline")
-    logs = df[df['Note'].astype(str).str.strip() != ""].sort_values(by=['Date', 'Timestamp'], ascending=False)
+    st.markdown("---")
+    st.markdown("### ☕ Scheduling Table")
+    calendar_events = []
+    for _, r in df.iterrows():
+        if r['Note'] and r['Date']:
+            calendar_events.append({
+                "title": f"☕ {str(r['Note'])[:15]}...",
+                "start": str(r['Date']),
+                "color": "#2e7d32" if r['Status'] != "UNAGI" else "#f1c40f"
+            })
     
-    for _, row in logs.iterrows():
-        is_unagi = str(row.get('Status')) == "UNAGI"
-        card_style = "unagi-gold-frame" if is_unagi else ""
-        
-        st.markdown(f"""
-            <div class="chalkboard-card {card_style}">
-                <div class="note-header">{row['Category']} | {row['Date']} @ {row['Timestamp']}</div>
-                <div class="note-body">"{row['Note']}"</div>
-                { '<div style="color: #f1c40f; font-weight: bold; margin-top: 10px;">✨ STATUS: UNAGI ✨</div>' if is_unagi else '' }
-            </div>
-        """, unsafe_allow_html=True)
-        
-        b1, b2, b3 = st.columns(3)
-        with b1:
-            if st.button("⏪ Rewind", key=f"ed_{row['ID']}"):
-                st.session_state.edit_val = row['Note']
-                st.rerun()
-        with b2:
-            if st.button("❌ Cancel", key=f"de_{row['ID']}"):
-                st.session_state.del_target = row['ID']
-                st.rerun()
-        with b3:
-            if st.button("👉 UNAGI!", key=f"un_{row['ID']}"):
-                st.session_state.unagi_target = row['ID']
-                st.rerun()
+    calendar(events=calendar_events, options={"initialView": "dayGridMonth"}, key="cal_v7")
 
 st.markdown("---")
-st.markdown("<p style='text-align: center; opacity: 0.6;'>Logistic Perk Hub v6.0 | SQM Multimedia Solutions | 2026</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; opacity: 0.6;'>Logistic Perk Hub v7.0 | SQM Multimedia Solutions | 2026</p>", unsafe_allow_html=True)

@@ -12,20 +12,30 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- THE ULTIMATE FRIENDS STYLE (CSS) ---
+# --- THE ULTIMATE FRIENDS STYLE (CSS) V3.5 - NEON SWITCH ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Varela+Round&family=Indie+Flower&display=swap');
 
+    /* Tło: Fioletowe cegły góra (Mieszkanie), Brązowe dół (Central Perk) */
     .stApp {
         background-image: 
             url("https://www.transparenttextures.com/patterns/brick-wall.png"),
-            linear-gradient(to bottom, #6a5acd 0%, #6a5acd 50%, #8b4513 50%, #8b4513 100%);
+            linear-gradient(to bottom, 
+                #6a5acd 0%, #6a5acd 50%, 
+                #8b4513 50%, #8b4513 100%
+            );
         background-attachment: fixed;
         background-size: auto, 100% 100%;
         color: white;
     }
 
+    /* Stylizacja Scrollbara */
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: #483d8b; }
+    ::-webkit-scrollbar-thumb { background: #f1c40f; border-radius: 5px; }
+
+    /* LOGO: LOGISTIC PERK */
     .friends-logo {
         font-family: 'Permanent Marker', cursive;
         font-size: 5rem;
@@ -36,6 +46,24 @@ st.markdown("""
     }
     .dot-red { color: #e74c3c; } .dot-blue { color: #3498db; } .dot-yellow { color: #f1c40f; }
 
+    /* Klasa dla włączonego neonu - Mruganie */
+    .neon-flicker {
+        animation: flicker 2s infinite; /* Czas i zapętlenie mrugania */
+    }
+
+    /* Animacja mrugania starego neonu */
+    @keyframes flicker {
+        0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
+            opacity: 1;
+            text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff, 0 0 40px #e74c3c, 0 0 70px #e74c3c;
+        }
+        20%, 21.999%, 63%, 63.999%, 65%, 69.999% {
+            opacity: 0.4;
+            text-shadow: none;
+        }
+    }
+
+    /* KARTY ZADAŃ */
     .chalkboard-card {
         background-color: rgba(34, 34, 34, 0.9);
         border: 8px solid #f1c40f; 
@@ -55,8 +83,10 @@ st.markdown("""
     .unagi-card {
         border-color: #2ecc71 !important;
         background-color: rgba(26, 60, 38, 0.9) !important;
+        box-shadow: 0 0 20px rgba(46, 204, 113, 0.3) !important;
     }
 
+    /* PRZYCISKI */
     div.stButton > button {
         font-family: 'Permanent Marker', cursive !important;
         background-color: #f1c40f !important;
@@ -65,7 +95,13 @@ st.markdown("""
         border: 3px solid black !important;
         box-shadow: 4px 4px 0px black !important;
     }
+    
+    div.stButton > button:active {
+        box-shadow: 1px 1px 0px black !important;
+        transform: translate(3px, 3px);
+    }
 
+    /* PIVOT BUTTON */
     .pivot-container div.stButton > button {
         height: 80px !important;
         font-size: 2.5rem !important;
@@ -73,6 +109,7 @@ st.markdown("""
         color: white !important;
     }
 
+    /* INPUT STYLE */
     .stTextArea textarea {
         background-color: #fdf5e6 !important;
         font-family: 'Indie Flower', cursive !important;
@@ -89,64 +126,64 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def fetch_data():
     try:
         data = conn.read(ttl=0)
-        # Gwarancja kolumn w Twoim układzie: Date, Note, ID, Timestamp, Category, Status
-        cols = ["Date", "Note", "ID", "Timestamp", "Category", "Status"]
-        for col in cols:
+        # Gwarancja kolumn
+        for col in ["Timestamp", "Date", "Note", "ID", "Status"]:
             if col not in data.columns:
                 data[col] = "Active" if col == "Status" else ""
-        return data[cols].fillna("")
-    except Exception:
-        return pd.DataFrame(columns=["Date", "Note", "ID", "Timestamp", "Category", "Status"])
+        return data.fillna("")
+    except Exception as e:
+        return pd.DataFrame(columns=["Timestamp", "Date", "Note", "ID", "Status"])
 
-def safe_update(data_to_save):
-    """Bezpiecznik: Nigdy nie zapisuj pustego arkusza, jeśli wcześniej były w nim dane."""
-    if not data_to_save.empty:
-        try:
-            conn.update(data=data_to_save)
-            st.cache_data.clear()
-            st.rerun()
-        except Exception as e:
-            st.error(f"Critical error during save: {e}")
-    else:
-        st.warning("Save blocked: Data is empty. Pivot safely!")
+# Stan sesji
+if 'edit_val' not in st.session_state: st.session_state.edit_val = ""
 
-# Inicjalizacja danych
 df = fetch_data()
 
-# Stan sesji dla edycji
-if 'edit_val' not in st.session_state:
-    st.session_state.edit_val = ""
-
-# --- LOGIKA OPERACJI ---
+# --- LOGIKA OPERACJI (PANCERNA) ---
 
 # Usuwanie
 if 'del_target' in st.session_state and st.session_state.del_target:
     target_id = str(st.session_state.del_target)
     df = df[df['ID'].astype(str) != target_id]
+    conn.update(data=df)
+    st.cache_data.clear()
     st.session_state.del_target = None
-    safe_update(df)
+    st.rerun()
 
-# Status UNAGI
+# Status UNAGI (Naprawiony błąd znikania)
 if 'unagi_target' in st.session_state and st.session_state.unagi_target:
     target_id = str(st.session_state.unagi_target)
+    # Sprawdzamy czy wiersz istnieje
     mask = df['ID'].astype(str) == target_id
     if mask.any():
         df.loc[mask, 'Status'] = "UNAGI"
-        st.snow()
+        conn.update(data=df)
+        st.cache_data.clear()
         st.toast("UNAGI! Total awareness achieved! 🍣")
+        st.snow()
     st.session_state.unagi_target = None
-    safe_update(df)
+    st.rerun()
 
 # --- UI INTERFEJS ---
-st.markdown('<div class="friends-logo">L<span class="dot-red">.</span>O<span class="dot-blue">.</span>G<span class="dot-yellow">.</span>I<span class="dot-red">.</span>S<span class="dot-blue">.</span>T<span class="dot-yellow">.</span>I<span class="dot-red">.</span>C P<span class="dot-blue">.</span>E<span class="dot-yellow">.</span>R<span class="dot-red">.</span>K</div>', unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#f1c40f; font-weight:bold; letter-spacing:3px;'>PIOTR DUKIEL | LOGISTICS HUB</p>", unsafe_allow_html=True)
+
+# Logika „Pstryczka”
+neon_on = st.checkbox("Włącz Neon", key="neon_switch")
+neon_class = "neon-flicker" if neon_on else ""
+
+st.markdown(f"""
+<div class="friends-logo {neon_class}">
+    L<span class="dot-red">.</span>O<span class="dot-blue">.</span>G<span class="dot-yellow">.</span>I<span class="dot-red">.</span>S<span class="dot-blue">.</span>T<span class="dot-yellow">.</span>I<span class="dot-red">.</span>C P<span class="dot-blue">.</span>E<span class="dot-yellow">.</span>R<span class="dot-red">.</span>K
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<p style='text-align:center; color:#f1c40f; font-weight:bold; letter-spacing:3px;'>SQM MULTIMEDIA SOLUTIONS | LOGISTICS HUB</p>", unsafe_allow_html=True)
 
 l_col, r_col = st.columns([1.5, 1], gap="large")
 
 with l_col:
     st.markdown("### 🎬 Logistics Scripts")
     
-    # Wyświetlamy tylko te, które mają treść (by nie zaśmiecać widoku pustymi wierszami)
+    # Filtrujemy tylko wiersze z notatką i sortujemy
     display_df = df[df['Note'].astype(str).str.strip() != ""].sort_values(by=['Date', 'Timestamp'], ascending=False)
     
     if display_df.empty:
@@ -186,21 +223,23 @@ with r_col:
             if st.form_submit_button("PIVOT!"):
                 if txt:
                     new_row = pd.DataFrame([{
+                        "Timestamp": datetime.now().strftime("%H:%M:%S"),
                         "Date": datetime.now().strftime("%Y-%m-%d"),
                         "Note": txt,
                         "ID": str(uuid.uuid4()),
-                        "Timestamp": datetime.now().strftime("%H:%M:%S"),
-                        "Category": "General",
                         "Status": "Active"
                     }])
                     df = pd.concat([df, new_row], ignore_index=True)
+                    conn.update(data=df)
+                    st.cache_data.clear()
                     st.session_state.edit_val = ""
-                    safe_update(df)
+                    st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### 📅 Logistics Calendar")
     
+    # Eventy do kalendarza
     events = []
     for _, r in df.iterrows():
         if r['Note']:
@@ -213,4 +252,4 @@ with r_col:
     
     calendar(events=events, options={"initialView": "dayGridMonth", "firstDay": 1}, key="friends_cal_v9")
 
-st.markdown("<p style='text-align:center; opacity:0.4; margin-top:50px;'>Logistics Perk v9.8 | PIOTR DUKIEL | 2026</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; opacity:0.4; margin-top:50px;'>Logistics Perk v9.7 | SQM | 2026</p>", unsafe_allow_html=True)

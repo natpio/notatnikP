@@ -188,7 +188,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<p style='text-align:center; color:#f1c40f; font-weight:bold; letter-spacing:3px;'>SQM MULTIMEDIA SOLUTIONS | LOGISTICS HUB</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#f1c40f; font-weight:bold; letter-spacing:3px;'>PIOTR DUKIEL  | LOGISTICS HUB</p>", unsafe_allow_html=True)
 
 l_col, r_col = st.columns([1.5, 1], gap="large")
 
@@ -263,4 +263,4 @@ with r_col:
     
     calendar(events=events, options={"initialView": "dayGridMonth", "firstDay": 1}, key="friends_cal_v10")
 
-st.markdown("<p style='text-align:center; opacity:0.4; margin-top:50px;'>Logistics Perk v10.0 | SQM Multimedia Solutions | 2026</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; opacity:0.4; margin-top:50px;'>Logistics Perk v10.0 | PIOTR DUKIEL | 2026</p>", unsafe_allow_html=True)
